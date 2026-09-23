@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { supabase } from './lib/supabase';
+import Alergias from './screens/alergias';
+
+//Puerba Alergias
+/*
+export default function App() {
+  return <Alergias />;
+}*/
 
 // Prueba de conexión: lee la tabla "alergenos" (lectura pública, no pide sesión).
 // Cuando el equipo agregue las pantallas, este App.tsx se reemplaza.
