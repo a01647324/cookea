@@ -24,6 +24,7 @@ export default function Alergias() {
 
     useEffect(() => {
     cargarAlergenos();
+    cargarAlergiasGuardadas();
     }, []);
 
     async function cargarAlergenos() {
@@ -40,6 +41,28 @@ export default function Alergias() {
 
     setCargando(false);
     }
+
+    async function cargarAlergiasGuardadas() {
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return; // todavía no hay sesión (ej. primera pantalla tras registro)
+
+    const { data, error } = await supabase
+        .from('usuario_alergias')
+        .select('alergeno_id')
+        .eq('usuario_id', user.id);
+
+    if (error) {
+        Alert.alert('Error', error.message);
+        return;
+    }
+
+    if (data) {
+        setSeleccionados(data.map((fila) => fila.alergeno_id));
+    }
+}
 
     function seleccionarAlergeno(id: number) {
     if (seleccionados.includes(id)) {
