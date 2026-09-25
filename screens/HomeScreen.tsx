@@ -12,6 +12,10 @@ import { TipBanner } from '../components/TipBanner';
 import { RecipeCard } from '../components/RecipeCard';
 import { VistaCargando, VistaError } from '../components/StateViews';
 import { colors, coloresTarjetaReceta, espaciado, tipografia } from '../theme/theme';
+// AUTH: botón y función para cerrar sesión (temporal, para probar login/registro)
+import { Pressable } from 'react-native';
+import { radios } from '../theme/theme';
+import useSession from '../auth/useSession';
 
 /**
  * HomeScreen
@@ -24,6 +28,8 @@ import { colors, coloresTarjetaReceta, espaciado, tipografia } from '../theme/th
  */
 export function HomeScreen() {
   const navigation = useNavigation<any>();
+  // AUTH: cerrarSesion viene del hook useSession
+  const { cerrarSesion } = useSession();
 
   const { perfil, cargando: cargandoPerfil } = useUserProfile();
   const { dias, cargando: cargandoPlan, error: errorPlan, recargar: recargarPlan } = useWeekPlan(2);
@@ -84,6 +90,16 @@ export function HomeScreen() {
       >
         <View style={estilos.header}>
           <Text style={estilos.logo}>COOKEA</Text>
+          {/* AUTH: botón para cerrar sesión en la esquina superior derecha;
+              App.tsx regresa solo al Login */}
+          {/* Pressable en vez de Button porque Button no deja cambiar el
+              tamaño ni el estilo de la letra */}
+          <Pressable
+            onPress={cerrarSesion}
+            style={({ pressed }) => [estilos.botonCerrarSesion, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
+          </Pressable>
         </View>
 
         <View style={estilos.buscadorContenedor}>
@@ -160,6 +176,23 @@ const estilos = StyleSheet.create({
     fontWeight: '800',
     color: colors.textoPrincipal,
     letterSpacing: 1,
+  },
+  // AUTH: coloca el botón de cerrar sesión a la derecha del header,
+  // sin mover el logo del centro
+  botonCerrarSesion: {
+    position: 'absolute',
+    right: espaciado.md,
+    top: espaciado.sm,
+    paddingVertical: espaciado.xs,
+    paddingHorizontal: espaciado.sm,
+    borderWidth: 1,
+    borderColor: colors.vino,
+    borderRadius: radios.pill,
+  },
+  textoCerrarSesion: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.vino,
   },
   buscadorContenedor: {
     paddingHorizontal: espaciado.md,

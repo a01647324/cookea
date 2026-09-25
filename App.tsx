@@ -11,6 +11,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import { supabase } from './lib/supabase';
 import Alergias from './screens/alergias';
 
+// AUTH: pantallas de Login/SignUp y el hook que dice si hay sesión
+import { ActivityIndicator } from 'react-native';
+import LoginScreen from './auth/LoginScreen';
+import SignUpScreen from './auth/SignUpScreen';
+import useSession from './auth/useSession';
+
 
 // Define qué parámetros recibe cada pantalla al navegar hacia ella.
 export type RootStackParamList = {
@@ -18,6 +24,9 @@ export type RootStackParamList = {
   Recetario: { busquedaInicial?: string } | undefined;
   RecetaDetalle: { recetaId: number };
   Alergias: undefined;
+  // AUTH: pantallas para cuando no hay sesión
+  Login: undefined;
+  SignUp: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,6 +52,17 @@ export default function App() {
     probarConexion();
   }, []);
 
+  // AUTH: leemos la sesión. Mientras carga, mostramos un indicador para que
+  // no aparezca el Login por un instante si el usuario ya tenía sesión.
+  const { session, cargando } = useSession();
+  if (cargando) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     // SafeAreaProvider: le da a las pantallas la información de "notch"/barra
     // de estado del celular, para que WeekPlanSection, HomeScreen, etc. (que
@@ -56,17 +76,35 @@ export default function App() {
         {/* Stack.Navigator: apila pantallas una sobre otra (con "atrás" para
             regresar). headerShown:false porque cada pantalla ya dibuja su
             propio encabezado (el logo COOKEA, flecha de regreso, etc). */}
-        <Stack.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Recetario" component={RecetarioScreen} />
-          <Stack.Screen name="RecetaDetalle" component={RecipeDetailScreen} />
-          {/* Alergias sí lleva header nativo simple, porque su propio diseño
-              no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
-          <Stack.Screen
-            name="Alergias"
-            component={Alergias}
-            options={{ headerShown: true, title: 'Alergias' }}
-          />
+        {/* AUTH: se quitó initialRouteName="Home"; la primera pantalla de
+            cada grupo (Home o Login) es la inicial. */}
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {/* AUTH: si hay sesión se muestran las pantallas de la app; si no,
+              Login y SignUp. Al iniciar/cerrar sesión cambia solo. */}
+          {session ? (
+            <>
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Recetario" component={RecetarioScreen} />
+              <Stack.Screen name="RecetaDetalle" component={RecipeDetailScreen} />
+              {/* Alergias sí lleva header nativo simple, porque su propio diseño
+                  no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
+              <Stack.Screen
+                name="Alergias"
+                component={Alergias}
+                options={{ headerShown: true, title: 'Alergias' }}
+              />
+            </>
+          ) : (
+            <>
+              {/* AUTH: pantallas sin sesión */}
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen
+                name="SignUp"
+                component={SignUpScreen}
+                options={{ headerShown: true, title: 'Registro' }}
+              />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
