@@ -27,20 +27,36 @@ export default function Alergias() {
     cargarAlergiasGuardadas();
     }, []);
 
-    async function cargarAlergenos() {
-    const { data, error } = await supabase
-        .from('alergenos')
-        .select('id, nombre')
-        .order('id');
+   async function cargarAlergenos() {
+  const { data: listaAlergenos, error } = await supabase
+    .from('alergenos')
+    .select('id, nombre')
+    .order('id');
 
-    if (error) {
-        Alert.alert('Error', error.message);
-    } else {
-        setAlergenos(data || []);
-    }
-
+  if (error) {
+    Alert.alert('Error', 'No se pudieron cargar los alérgenos.');
     setCargando(false);
-    }
+    return;
+  }
+
+  setAlergenos(listaAlergenos || []);
+
+  const { data: alergiasUsuario, error: errorUsuario } = await supabase
+    .from('usuario_alergias')
+    .select('alergeno_id');
+
+  if (errorUsuario) {
+    Alert.alert('Error', 'No se pudieron cargar tus alergias.');
+  } else {
+    const ids = (alergiasUsuario || []).map(
+      item => item.alergeno_id
+    );
+
+    setSeleccionados(ids);
+  }
+
+  setCargando(false);
+}
 
     async function cargarAlergiasGuardadas() {
     const {

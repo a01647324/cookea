@@ -81,6 +81,13 @@ export function HomeScreen() {
       // TODO: cambiar a navigation.navigate('Comunidad') cuando exista.
       onPress: () => Alert.alert('Próximamente', 'Comunidad está en construcción.'),
     },
+    {
+      clave: 'alergias',
+      titulo: 'Alergias',
+      subtitulo: 'Configura tus alergias',
+      color: colors.olivaOscuro,
+      onPress: () => navigation.navigate('Alergias'),
+    },
   ];
 
   return (
