@@ -7,6 +7,8 @@ import {
     ActivityIndicator,
     Alert,
     ScrollView,
+    ImageBackground,
+    Image,
 } from 'react-native';
 
 import { supabase } from '../lib/supabase';
@@ -153,60 +155,120 @@ export default function Alergias() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Alergias alimentarias</Text>
-
-      <Text style={styles.subtitle}>
-        Selecciona las alergias que tengas. Esto nos ayudará a personalizar tus recetas
-      </Text>
-
-      <View style={styles.options}>
-        {alergenos.map(alergeno => {
-          const seleccionado = seleccionados.includes(alergeno.id);
-
-          return (
-            <TouchableOpacity
-              key={alergeno.id}
-              style={[
-                styles.option,
-                seleccionado && styles.optionSelected,
-              ]}
-              onPress={() => seleccionarAlergeno(alergeno.id)}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  seleccionado && styles.checkboxSelected,
-                ]}
-              >
-                {seleccionado && <Text style={styles.check}>✓</Text>}
-              </View>
-
-              <Text style={styles.optionText}>{alergeno.nombre}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={guardarAlergias}
-        disabled={guardando}
+      <ImageBackground
+        source={require('../assets/images/cookea-background-alergias.png')}
+        style={styles.background}
+        resizeMode="cover"
       >
-        <Text style={styles.buttonText}>
-          {guardando ? 'Guardando...' : 'Guardar alergias'}
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
+    
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
+    
+          {/* LOGO COOKEA */}
+    
+          <Image
+            source={require('../assets/images/cookea-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+    
+          {/* TÍTULO */}
+    
+          <Text style={styles.title}>
+            Alergias alimentarias
+          </Text>
+    
+          <Text style={styles.subtitle}>
+            Selecciona las alergias que tengas. Esto nos ayudará a personalizar tus recetas
+          </Text>
+    
+          {/* LISTA DE ALERGIAS */}
+    
+          <View style={styles.options}>
+    
+            {alergenos.map(alergeno => {
+    
+              const seleccionado = seleccionados.includes(alergeno.id);
+    
+              return (
+    
+                <TouchableOpacity
+                  key={alergeno.id}
+                  style={[
+                    styles.option,
+                    seleccionado && styles.optionSelected,
+                  ]}
+                  onPress={() => seleccionarAlergeno(alergeno.id)}
+                >
+    
+                  <View
+                    style={[
+                      styles.checkbox,
+                      seleccionado && styles.checkboxSelected,
+                    ]}
+                  >
+    
+                    {seleccionado && (
+                      <Text style={styles.check}>✓</Text>
+                    )}
+    
+                  </View>
+    
+                  <Text style={styles.optionText}>
+                    {alergeno.nombre}
+                  </Text>
+    
+                </TouchableOpacity>
+    
+              );
+    
+            })}
+    
+          </View>
+    
+          {/* BOTÓN GUARDAR */}
+    
+          <TouchableOpacity
+            style={styles.button}
+            onPress={guardarAlergias}
+            disabled={guardando}
+          >
+    
+            <Text style={styles.buttonText}>
+              {guardando ? 'Guardando...' : 'Guardar alergias'}
+            </Text>
+    
+          </TouchableOpacity>
+    
+        </ScrollView>
+    
+      </ImageBackground>
+    );
 }
 
 const styles = StyleSheet.create({
+    background: {
+      flex: 1,
+    },
+    
+    logo: {
+      width: 150,
+      height: 45,
+    
+      alignSelf: 'center',
+    
+      marginBottom: 0,
+    },
     container: {
-        flexGrow: 1,
-        padding: 30,
-        paddingTop: 70,
-        backgroundColor: '#F7F5F0',
+      flexGrow: 1,
+    
+      paddingHorizontal: 30,
+    
+      paddingTop: 15,
+    
+      paddingBottom: 50,
     },
 
     center: {
@@ -220,9 +282,14 @@ const styles = StyleSheet.create({
     },
 
     title: {
-        fontSize: 30,
-        fontWeight: 'bold',
-        marginBottom: 10,
+      fontSize: 30,
+      fontWeight: 'bold',
+    
+      color: '#745213',
+    
+      textAlign: 'center',
+    
+      marginBottom: 15,
     },
 
     subtitle: {
@@ -246,7 +313,7 @@ const styles = StyleSheet.create({
     },
 
     optionSelected: {
-        borderColor: '#333',
+      borderColor: '#E07970',
     },
 
     checkbox: {
@@ -261,8 +328,8 @@ const styles = StyleSheet.create({
     },
 
     checkboxSelected: {
-        backgroundColor: '#333',
-        borderColor: '#333',
+      backgroundColor: '#E07970',
+      borderColor: '#E07970',
     },
 
     check: {
@@ -278,7 +345,7 @@ const styles = StyleSheet.create({
         marginTop: 30,
         padding: 17,
         borderRadius: 12,
-        backgroundColor: '#333',
+        backgroundColor: '#535D34',
         alignItems: 'center'
     },
 

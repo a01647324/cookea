@@ -1,31 +1,64 @@
 import { useState } from "react";
-import { ScrollView, View, Text, TextInput, Button, Switch, ActivityIndicator, StyleSheet } from "react-native";
+
+import {
+  ScrollView,
+  View,
+  Text,
+  TextInput,
+  Switch,
+  ActivityIndicator,
+  StyleSheet,
+  ImageBackground,
+  Image,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
+} from "react-native";
+
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { supabase } from "../lib/supabase";
 import { colors, espaciado, radios, tipografia } from "../theme/theme";
 
-// (nuevo) Nombres de las llaves que lee el trigger manejar_nuevo_usuario en
-// Supabase para crear la fila en `perfiles`. Si el trigger usa otros nombres,
-// solo hay que cambiarlos aquí.
+
+// Dimensiones de pantalla para hacer el logo responsivo
+const { width: anchoPantalla } = Dimensions.get("window");
+
+const ANCHO_LOGO = Math.min(anchoPantalla * 0.75, 330);
+const ALTO_LOGO = ANCHO_LOGO / 3.94;
+
+
+// Llaves que utiliza Supabase para crear el perfil
 const LLAVE_ALIAS = "alias";
 const LLAVE_NOMBRE = "nombre";
-// El trigger revisa que esta llave sea true; si no, rechaza el registro.
 const LLAVE_ACEPTO_PRIVACIDAD = "acepto_privacidad";
 
-// (clase) Componente declarado como función y navigation que recibe de React Navigation
+
+// Componente principal de registro
 export default function SignUpScreen({ navigation }: any) {
-  // (clase) Un useState por cada campo del formulario
+
+  // Estados del formulario
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmarPassword, setConfirmarPassword] = useState("");
   const [alias, setAlias] = useState("");
-  const [nombre, setNombre] = useState(""); // privado: nunca se muestra a otros usuarios
-  // (nuevo) Switch es como un checkbox: guarda true/false
+  const [nombre, setNombre] = useState("");
+
+  // Estado del aviso de privacidad
   const [aceptoPrivacidad, setAceptoPrivacidad] = useState(false);
 
+  // Estado de carga
   const [cargando, setCargando] = useState(false);
 
+  // Área segura del dispositivo
+  const insets = useSafeAreaInsets();
+
+
+  // Función para registrar al usuario en Supabase
   async function registrarse() {
-    // (clase) Validaciones simples con if antes de llamar al servidor
+
+    // Validar que todos los campos estén completos
     if (
       email.trim() === "" ||
       password === "" ||
@@ -36,18 +69,26 @@ export default function SignUpScreen({ navigation }: any) {
       alert("Llena todos los campos");
       return;
     }
+
+    // Validar correo
     if (!email.includes("@")) {
       alert("Escribe un correo válido");
       return;
     }
+
+    // Validar contraseña
     if (password.length < 8) {
       alert("La contraseña debe tener al menos 8 caracteres");
       return;
     }
+
+    // Validar confirmación de contraseña
     if (password !== confirmarPassword) {
       alert("Las contraseñas no coinciden");
       return;
     }
+
+    // Validar aceptación del aviso de privacidad
     if (!aceptoPrivacidad) {
       alert("Debes aceptar el aviso de privacidad para crear tu cuenta");
       return;
@@ -55,158 +96,471 @@ export default function SignUpScreen({ navigation }: any) {
 
     setCargando(true);
 
-    // (clase) async/await con try/catch/finally para "fail gracefully"
     try {
-      // (nuevo) signUp es el equivalente de createUserWithEmailAndPassword.
-      //
-      // DIFERENCIA IMPORTANTE CON FIREBASE:
-      // Firebase LANZABA el error y lo atrapábamos con .catch.
-      // Supabase NO lanza el error: regresa { data, error }, así que
-      // revisamos `if (error)` nosotros mismos.
-      //
-      // (nuevo) La app NO inserta en la tabla `perfiles`. Mandamos alias,
-      // nombre y la aceptación de privacidad en options.data (metadatos del usuario) y el
-      // trigger manejar_nuevo_usuario de la base de datos crea la fila solo.
-      //
-      // (nuevo) Como "Confirm email" está activado, signUp NO regresa sesión:
-      // el usuario debe confirmar su correo antes de poder iniciar sesión.
+
+      // Registrar usuario mediante Supabase Auth
       const { error } = await supabase.auth.signUp({
+
         email: email.trim(),
+
         password: password,
+
         options: {
           data: {
             [LLAVE_ALIAS]: alias.trim(),
             [LLAVE_NOMBRE]: nombre.trim(),
-            // El trigger lo vuelve a revisar en el servidor (no basta con la casilla)
             [LLAVE_ACEPTO_PRIVACIDAD]: aceptoPrivacidad,
           },
         },
+
       });
 
+
+      // Manejo de errores de Supabase
       if (error) {
-        // (clase) Revisamos el código del error para dar un mensaje claro
+
         switch (error.code) {
+
           case "weak_password":
             alert("La contraseña es muy débil. Usa una más segura.");
             break;
+
           case "email_address_invalid":
             alert("Ese correo no es válido");
             break;
+
           case "user_already_exists":
             alert("No se pudo crear la cuenta con ese correo");
             break;
+
           case "over_email_send_rate_limit":
-            alert("Se enviaron demasiados correos. Espera un momento e intenta de nuevo.");
+            alert(
+              "Se enviaron demasiados correos. Espera un momento e intenta de nuevo."
+            );
             break;
+
           default:
             alert("No se pudo crear la cuenta. Intenta de nuevo.");
+
         }
+
         return;
       }
 
-      // (nuevo) Ojo: con "Confirm email" activado, si el correo YA estaba
-      // registrado, Supabase normalmente NO regresa error (para no revelar
-      // qué correos existen). Por eso mostramos el mismo mensaje en ambos casos.
+
+      // Registro exitoso
       alert("Te enviamos un correo para confirmar tu cuenta");
+
       navigation.navigate("Login");
+
+
     } catch (e) {
+
       alert("Ocurrió un error inesperado. Revisa tu conexión.");
+
     } finally {
-      // (clase) El finally siempre corre: apagamos el indicador de carga
+
       setCargando(false);
+
     }
+
   }
 
+
+  // INTERFAZ DE REGISTRO
+
   return (
-    // ScrollView para que el teclado no tape los campos de abajo
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.titulo}>Crear cuenta</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Correo"
-        value={email}
-        onChangeText={text => setEmail(text)}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Contraseña (mínimo 8 caracteres)"
-        value={password}
-        onChangeText={text => setPassword(text)}
-        secureTextEntry={true}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirmar contraseña"
-        value={confirmarPassword}
-        onChangeText={text => setConfirmarPassword(text)}
-        secureTextEntry={true}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Alias (lo verán otros usuarios)"
-        value={alias}
-        onChangeText={text => setAlias(text)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Nombre (privado)"
-        value={nombre}
-        onChangeText={text => setNombre(text)}
-      />
+    <ImageBackground
 
-      {/* (nuevo) Casilla de aviso de privacidad, obligatoria para registrarse */}
-      <View style={styles.filaPrivacidad}>
-        <Switch
-          value={aceptoPrivacidad}
-          onValueChange={valor => setAceptoPrivacidad(valor)}
-          trackColor={{ true: colors.oliva, false: colors.borde }}
-        />
-        <Text style={styles.textoPrivacidad}>Acepto el aviso de privacidad</Text>
-      </View>
+      source={require("../assets/images/cookea-background-signup.png")}
 
-      {/* (clase) ActivityIndicator mientras se procesa, así no se manda dos veces */}
-      {cargando ? (
-        <ActivityIndicator size="large" color={colors.oliva} />
-      ) : (
-        <Button title="Registrarme" color={colors.oliva} onPress={registrarse} />
-      )}
-    </ScrollView>
+      style={styles.fondo}
+
+      resizeMode="cover"
+
+    >
+
+      <KeyboardAvoidingView
+
+        style={styles.flex}
+
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+
+      >
+
+        <ScrollView
+
+          contentContainerStyle={[
+
+            styles.scrollContent,
+
+            {
+              paddingTop: insets.top + 35,
+            },
+
+          ]}
+
+          keyboardShouldPersistTaps="handled"
+
+          showsVerticalScrollIndicator={false}
+
+        >
+
+
+          {/* LOGO COOKEA */}
+
+          <Image
+
+            source={require("../assets/images/cookea-logo.png")}
+
+            style={styles.logo}
+
+            resizeMode="contain"
+
+          />
+
+
+          {/* FRASE DE BIENVENIDA */}
+
+          <Text style={styles.fraseBienvenida}>
+            ¡Regístrate y crea tu cuenta!
+          </Text>
+
+
+          {/* TARJETA NARANJA DE REGISTRO */}
+
+          <View style={styles.card}>
+
+
+            {/* TÍTULO */}
+
+            <Text style={styles.titulo}>
+
+              Crear cuenta
+
+            </Text>
+
+
+            {/* CORREO */}
+
+            <TextInput
+
+              style={styles.input}
+
+              placeholder="Correo"
+
+              placeholderTextColor={colors.textoSecundario}
+
+              value={email}
+
+              onChangeText={(text) => setEmail(text)}
+
+              autoCapitalize="none"
+
+              keyboardType="email-address"
+
+            />
+
+
+            {/* CONTRASEÑA */}
+
+            <TextInput
+
+              style={styles.input}
+
+              placeholder="Contraseña (mínimo 8 caracteres)"
+
+              placeholderTextColor={colors.textoSecundario}
+
+              value={password}
+
+              onChangeText={(text) => setPassword(text)}
+
+              secureTextEntry={true}
+
+            />
+
+
+            {/* CONFIRMAR CONTRASEÑA */}
+
+            <TextInput
+
+              style={styles.input}
+
+              placeholder="Confirmar contraseña"
+
+              placeholderTextColor={colors.textoSecundario}
+
+              value={confirmarPassword}
+
+              onChangeText={(text) => setConfirmarPassword(text)}
+
+              secureTextEntry={true}
+
+            />
+
+
+            {/* ALIAS */}
+
+            <TextInput
+
+              style={styles.input}
+
+              placeholder="Alias (lo verán otros usuarios)"
+
+              placeholderTextColor={colors.textoSecundario}
+
+              value={alias}
+
+              onChangeText={(text) => setAlias(text)}
+
+            />
+
+
+            {/* NOMBRE */}
+
+            <TextInput
+
+              style={styles.input}
+
+              placeholder="Nombre (privado)"
+
+              placeholderTextColor={colors.textoSecundario}
+
+              value={nombre}
+
+              onChangeText={(text) => setNombre(text)}
+
+            />
+
+
+            {/* AVISO DE PRIVACIDAD */}
+
+            <View style={styles.filaPrivacidad}>
+
+            <Switch
+              value={aceptoPrivacidad}
+              onValueChange={(valor) => setAceptoPrivacidad(valor)}
+              trackColor={{
+                true: "#FFD47B",
+                false: colors.borde,
+              }}
+              thumbColor={colors.surface}
+            />
+
+              <Text style={styles.textoPrivacidad}>
+
+                Acepto el aviso de privacidad
+
+              </Text>
+
+            </View>
+
+
+            {/* BOTÓN REGISTRARME */}
+
+            {cargando ? (
+
+              <ActivityIndicator
+
+                size="large"
+
+                color={colors.olivaOscuro}
+
+                style={styles.loader}
+
+              />
+
+            ) : (
+
+              <TouchableOpacity
+
+                style={styles.botonPrincipal}
+
+                onPress={registrarse}
+
+                activeOpacity={0.85}
+
+              >
+
+                <Text style={styles.textoBotonPrincipal}>
+
+                  REGISTRARME
+
+                </Text>
+
+              </TouchableOpacity>
+
+            )}
+
+
+          </View>
+
+
+        </ScrollView>
+
+      </KeyboardAvoidingView>
+
+    </ImageBackground>
+
   );
+
 }
 
-// (clase) Estilos al final del archivo
+
+// ESTILOS DE LA PANTALLA
+
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: espaciado.lg,
+
+  // Fondo ilustrado
+  fondo: {
+    flex: 1,
     backgroundColor: colors.background,
   },
-  titulo: {
-    ...tipografia.titulo,
-    textAlign: "center",
-    marginBottom: espaciado.lg,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: radios.sm,
-    padding: espaciado.md,
-    marginBottom: espaciado.md,
-    color: colors.textoPrincipal,
-  },
-  filaPrivacidad: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: espaciado.lg,
-  },
-  textoPrivacidad: {
-    ...tipografia.cuerpo,
-    marginLeft: espaciado.sm,
+
+
+  flex: {
     flex: 1,
   },
+
+
+  // Contenedor principal
+  scrollContent: {
+    flexGrow: 1,
+
+    alignItems: "center",
+
+    paddingHorizontal: 24,
+
+    paddingBottom: 50,
+  },
+
+
+  // Logo de Cookea
+  logo: {
+    width: ANCHO_LOGO,
+    height: ALTO_LOGO,
+    alignSelf: "center",
+    marginTop: 20,
+    marginBottom: 5,
+  },
+
+
+  // Tarjeta naranja
+  card: {
+    width: "100%",
+    maxWidth: 420,
+  
+    backgroundColor: "rgba(226, 138, 70, 0.85)",
+  
+    borderRadius: 40,
+  
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  
+    marginTop: 10,
+  
+    overflow: "hidden",
+  },
+
+
+  // Título Crear cuenta
+  titulo: {
+    fontSize: 24,
+
+    fontWeight: "700",
+
+    color: "#745213",
+
+    textAlign: "center",
+
+    marginBottom: 28,
+  },
+
+
+  // Campos de texto
+  input: {
+    backgroundColor: colors.surface,
+
+    borderRadius: radios.pill,
+
+    paddingHorizontal: 24,
+
+    paddingVertical: 16,
+
+    marginBottom: 16,
+
+    color: colors.textoPrincipal,
+
+    fontSize: 14,
+  },
+
+
+  // Fila del aviso de privacidad
+  filaPrivacidad: {
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    marginTop: 8,
+
+    marginBottom: 24,
+  },
+
+
+  // Texto del aviso de privacidad
+  textoPrivacidad: {
+    color: colors.olivaOscuro,
+
+    fontSize: 13,
+
+    fontWeight: "500",
+
+    marginLeft: 8,
+
+    flex: 1,
+  },
+
+
+  // Botón verde de registro
+  botonPrincipal: {
+    backgroundColor: colors.olivaOscuro,
+
+    borderRadius: radios.pill,
+
+    paddingVertical: 17,
+
+    alignItems: "center",
+
+    justifyContent: "center",
+  },
+
+
+  // Texto del botón
+  textoBotonPrincipal: {
+    color: colors.textoSobreColor,
+
+    fontSize: 15,
+
+    fontWeight: "700",
+
+    letterSpacing: 0.5,
+  },
+
+
+  // Indicador de carga
+  loader: {
+    marginTop: 8,
+  },
+
+  fraseBienvenida: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.textoPrincipal,
+    textAlign: "center",
+    marginTop: 0,
+    marginBottom: 5,
+  },
+
 });

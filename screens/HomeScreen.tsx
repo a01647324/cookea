@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View, Alert, Image, } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -54,38 +54,65 @@ export function HomeScreen() {
       titulo: 'Recetas',
       subtitulo: 'Busca recetas',
       color: coloresTarjetaReceta[0],
+  
+      icono: require('../assets/images/icons/recipe-book.png'),
+  
       onPress: () => navigation.navigate('Recetario'),
     },
+  
     {
       clave: 'alacena',
       titulo: 'Alacena',
       subtitulo: 'Observa lo que tienes',
       color: coloresTarjetaReceta[1],
-      // TODO: cambiar a navigation.navigate('Alacena') cuando esa pantalla
-      // exista y esté registrada en App.tsx (Stack.Screen name="Alacena").
-      onPress: () => Alert.alert('Próximamente', 'La Alacena está en construcción.'),
+  
+      icono: require('../assets/images/icons/cupboard.png'),
+  
+      onPress: () =>
+        Alert.alert(
+          'Próximamente',
+          'La Alacena está en construcción.'
+        ),
     },
+  
     {
       clave: 'favoritos',
       titulo: 'Favoritos',
       subtitulo: 'Mira tus recetas favoritas',
       color: coloresTarjetaReceta[2],
-      // TODO: cambiar a navigation.navigate('Favoritos') cuando exista.
-      onPress: () => Alert.alert('Próximamente', 'Favoritos está en construcción.'),
+  
+      icono: require('../assets/images/icons/heart.png'),
+  
+      onPress: () =>
+        Alert.alert(
+          'Próximamente',
+          'Favoritos está en construcción.'
+        ),
     },
+  
     {
       clave: 'comunidad',
       titulo: 'Comunidad',
       subtitulo: 'Comparte tus recetas',
       color: colors.olivaOscuro,
-      // TODO: cambiar a navigation.navigate('Comunidad') cuando exista.
-      onPress: () => Alert.alert('Próximamente', 'Comunidad está en construcción.'),
+  
+      icono: require('../assets/images/icons/group.png'),
+  
+      onPress: () =>
+        Alert.alert(
+          'Próximamente',
+          'Comunidad está en construcción.'
+        ),
     },
+  
     {
       clave: 'alergias',
       titulo: 'Alergias',
       subtitulo: 'Configura tus alergias',
       color: colors.olivaOscuro,
+  
+      icono: require('../assets/images/icons/allergy.png'),
+  
       onPress: () => navigation.navigate('Alergias'),
     },
   ];
@@ -96,7 +123,11 @@ export function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={alJalarParaRefrescar} />}
       >
         <View style={estilos.header}>
-          <Text style={estilos.logo}>COOKEA</Text>
+        <Image 
+          source={require('../assets/images/cookea-logo.png')}
+          style={estilos.logo}
+          resizeMode="contain"/>
+
           {/* AUTH: botón para cerrar sesión en la esquina superior derecha;
               App.tsx regresa solo al Login */}
           {/* Pressable en vez de Button porque Button no deja cambiar el
@@ -176,14 +207,19 @@ const estilos = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: espaciado.sm,
+    justifyContent: 'center',
+  
+    paddingTop: 10,
+    paddingBottom: 10,
+  
+    minHeight: 65,
   },
+  
   logo: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.textoPrincipal,
-    letterSpacing: 1,
+    width: 155,
+    height: 45,
   },
+
   // AUTH: coloca el botón de cerrar sesión a la derecha del header,
   // sin mover el logo del centro
   botonCerrarSesion: {

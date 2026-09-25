@@ -25,6 +25,7 @@ export const colors = {
   textoPrincipal: '#3A2E22', // marrón oscuro, como el logo
   textoSecundario: '#8A8378',
   textoSobreColor: '#FFFFFF', // texto blanco sobre tarjetas de color
+  textoSobreColorSecundario: 'rgba(255,255,255,0.75)', // texto blanco atenuado (placeholders, subtítulos sobre fondo oscuro/imagen)
 
   // Estados
   exito: '#4C7A4C',
@@ -32,6 +33,16 @@ export const colors = {
   advertencia: '#C98A2C',
 
   borde: '#E7DFD0',
+
+  // Pantallas con imagen de fondo (login/registro): tarjeta tipo "glass"
+  overlayCard: 'rgba(110, 122, 69, 0.55)', // (legado) fondo translúcido verde oliva — ya no se usa en LoginScreen
+  overlayCardBorde: 'rgba(255, 255, 255, 0.25)', // (legado)
+  inputFondo: 'rgba(255, 255, 255, 0.12)', // (legado)
+  inputBorde: 'rgba(255, 255, 255, 0.45)', // (legado)
+  botonPrincipal: '#E07970', // Salmon Paste — botón "Iniciar Sesión"
+
+  // Tarjeta sólida sobre la imagen de fondo (versión actual del login)
+  tarjetaClara: '#C8CCAF', // verde salvia sólido
 } as const;
 
 export const espaciado = {
