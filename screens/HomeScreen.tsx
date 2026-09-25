@@ -115,7 +115,7 @@ export function HomeScreen() {
 
         <View style={estilos.saludoContenedor}>
           <Text style={tipografia.titulo}>
-            {cargandoPerfil ? '¡Bienvenido!' : `¡Bienvenido, ${perfil?.alias ?? 'usuario'}!`}
+            {cargandoPerfil ? '¡Bienvenid@!' : `¡Bienvenid@, ${perfil?.alias ?? 'usuario'}!`}
           </Text>
         </View>
 
