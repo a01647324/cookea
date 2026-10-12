@@ -17,6 +17,7 @@ import LoginScreen from './auth/LoginScreen';
 import SignUpScreen from './auth/SignUpScreen';
 import useSession from './auth/useSession';
 
+import { WeekPlanScreen } from './screens/WeekPlanScreen';
 
 // Define qué parámetros recibe cada pantalla al navegar hacia ella.
 export type RootStackParamList = {
@@ -27,6 +28,7 @@ export type RootStackParamList = {
   // AUTH: pantallas para cuando no hay sesión
   Login: undefined;
   SignUp: undefined;
+  TuSemana: { fechaInicial?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -93,6 +95,7 @@ export default function App() {
                 component={Alergias}
                 options={{ headerShown: true, title: 'Alergias' }}
               />
+              <Stack.Screen name="TuSemana" component={WeekPlanScreen}/>
             </>
           ) : (
             <>

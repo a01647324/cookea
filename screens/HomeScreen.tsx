@@ -1,7 +1,7 @@
 import React from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View, Alert, Image, } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, } from '@react-navigation/native';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useWeekPlan } from '../hooks/useWeekPlan';
 import { useFeaturedRecipes } from '../hooks/useFeaturedRecipes';
@@ -33,6 +33,13 @@ export function HomeScreen() {
 
   const { perfil, cargando: cargandoPerfil } = useUserProfile();
   const { dias, cargando: cargandoPlan, error: errorPlan, recargar: recargarPlan } = useWeekPlan(2);
+  useFocusEffect(
+    React.useCallback(() => {
+  
+      recargarPlan();
+  
+    }, [recargarPlan])
+  );
   const {
     recetas: destacadas,
     cargando: cargandoDestacadas,
@@ -164,8 +171,19 @@ export function HomeScreen() {
         ) : (
           <WeekPlanSection
             dias={dias}
-            onVerSemana={() => Alert.alert('Próximamente', 'La vista de semana completa está en construcción.')}
-            onAgregar={() => navigation.navigate('Recetario')}
+            onVerSemana={() =>
+              navigation.navigate(
+                'TuSemana'
+              )
+            }
+            onAgregar={(fecha) =>
+              navigation.navigate(
+                'TuSemana',
+                {
+                  fechaInicial: fecha,
+                }
+              )
+            }
           />
         )}
 
