@@ -32,7 +32,13 @@ export function HomeScreen() {
   const { cerrarSesion } = useSession();
 
   const { perfil, cargando: cargandoPerfil } = useUserProfile();
-  const { dias, cargando: cargandoPlan, error: errorPlan, recargar: recargarPlan } = useWeekPlan(2);
+  const {
+    dias,
+    cargando: cargandoPlan,
+    error: errorPlan,
+    recargar: recargarPlan
+  } = useWeekPlan();
+  
   useFocusEffect(
     React.useCallback(() => {
   
