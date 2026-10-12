@@ -8,6 +8,7 @@ import useSession from "../auth/useSession";
 import { VistaCargando } from "../components/StateViews";
 import { colors, espaciado, radios, tipografia } from "../theme/theme";
 import { MENSAJE_ERROR_CARGA } from "./usePreferencias";
+import EliminarCuentaModal from "./EliminarCuentaModal";
 
 // Saca los nombres de las filas que regresa select('alergenos(nombre)').
 // Cada fila trae { alergenos: { nombre } }.
@@ -37,6 +38,8 @@ export default function PerfilScreen({ navigation }: any) {
   const [alergiasPropias, setAlergiasPropias] = useState<string[] | null>(null);
   const [alergiasHogar, setAlergiasHogar] = useState<string[] | null>(null);
   const [errorAlergias, setErrorAlergias] = useState(false);
+  // true mientras se ve el modal de "Eliminar mi cuenta"
+  const [mostrarEliminar, setMostrarEliminar] = useState(false);
 
   async function cargarAlergias() {
     setErrorAlergias(false);
@@ -199,7 +202,19 @@ export default function PerfilScreen({ navigation }: any) {
         >
           <Text style={styles.textoCerrarSesion}>Cerrar sesión</Text>
         </TouchableOpacity>
+
+        {/* Separado y menos llamativo que los demás, para no tocarlo por accidente */}
+        <TouchableOpacity
+          style={styles.botonEliminar}
+          onPress={() => setMostrarEliminar(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Eliminar mi cuenta"
+        >
+          <Text style={styles.textoEliminar}>Eliminar mi cuenta</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <EliminarCuentaModal visible={mostrarEliminar} onCerrar={() => setMostrarEliminar(false)} />
     </SafeAreaView>
   );
 }
@@ -318,5 +333,15 @@ const styles = StyleSheet.create({
     color: colors.vino,
     fontSize: 16,
     fontWeight: "700",
+  },
+  botonEliminar: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: espaciado.xl * 2,
+  },
+  textoEliminar: {
+    color: colors.error,
+    fontSize: 15,
   },
 });
