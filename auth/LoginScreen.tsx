@@ -169,6 +169,19 @@ export default function LoginScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
 
+            {/* AUTH: link para recuperar la contraseña, mismo estilo que "Regístrate" */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate("RecuperarClave")}
+              disabled={cargando}
+              style={styles.linkRegistro}
+              accessibilityRole="button"
+              accessibilityLabel="¿Olvidaste tu contraseña?"
+            >
+              <Text style={styles.textoLinkRegistro}>
+                <Text style={styles.textoLinkRegistroBold}>¿OLVIDASTE TU CONTRASEÑA?</Text>
+              </Text>
+            </TouchableOpacity>
+
             {/* (clase) navigation.navigate para cambiar de pantalla */}
             <TouchableOpacity
               onPress={() => navigation.navigate("SignUp")}

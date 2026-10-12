@@ -12,10 +12,7 @@ import { TipBanner } from '../components/TipBanner';
 import { RecipeCard } from '../components/RecipeCard';
 import { VistaCargando, VistaError } from '../components/StateViews';
 import { colors, coloresTarjetaReceta, espaciado, tipografia } from '../theme/theme';
-// AUTH: botón y función para cerrar sesión (temporal, para probar login/registro)
-import { Pressable } from 'react-native';
-import { radios } from '../theme/theme';
-import useSession from '../auth/useSession';
+import TarjetaPersonaliza from '../perfil/TarjetaPersonaliza'; // PERFIL:
 
 /**
  * HomeScreen
@@ -28,10 +25,10 @@ import useSession from '../auth/useSession';
  */
 export function HomeScreen() {
   const navigation = useNavigation<any>();
-  // AUTH: cerrarSesion viene del hook useSession
-  const { cerrarSesion } = useSession();
 
-  const { perfil, cargando: cargandoPerfil } = useUserProfile();
+  // PERFIL: recargarPerfil para que el saludo muestre el alias nuevo
+  // después de editarlo en Cuenta
+  const { perfil, recargar: recargarPerfil } = useUserProfile();
   const {
     dias,
     cargando: cargandoPlan,
@@ -43,8 +40,9 @@ export function HomeScreen() {
     React.useCallback(() => {
   
       recargarPlan();
-  
-    }, [recargarPlan])
+      recargarPerfil(); // PERFIL: para que el saludo muestre el alias nuevo
+
+    }, [recargarPlan, recargarPerfil])
   );
   const {
     recetas: destacadas,
@@ -140,17 +138,6 @@ export function HomeScreen() {
           source={require('../assets/images/cookea-logo.png')}
           style={estilos.logo}
           resizeMode="contain"/>
-
-          {/* AUTH: botón para cerrar sesión en la esquina superior derecha;
-              App.tsx regresa solo al Login */}
-          {/* Pressable en vez de Button porque Button no deja cambiar el
-              tamaño ni el estilo de la letra */}
-          <Pressable
-            onPress={cerrarSesion}
-            style={({ pressed }) => [estilos.botonCerrarSesion, pressed && { opacity: 0.6 }]}
-          >
-            <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
-          </Pressable>
         </View>
 
         <View style={estilos.buscadorContenedor}>
@@ -166,9 +153,15 @@ export function HomeScreen() {
 
         <View style={estilos.saludoContenedor}>
           <Text style={tipografia.titulo}>
-            {cargandoPerfil ? '¡Bienvenid@!' : `¡Bienvenid@, ${perfil?.alias ?? 'usuario'}!`}
+            {/* PERFIL: sin nombre solo cuando todavía no hay perfil; al
+                recargar se sigue viendo el alias, así el saludo no parpadea */}
+            {perfil === null ? '¡Bienvenid@!' : `¡Bienvenid@, ${perfil.alias}!`}
           </Text>
         </View>
+
+        {/* PERFIL: invitación a Personaliza; se esconde sola cuando ya la
+            contestó o tocó "Ahora no" */}
+        <TarjetaPersonaliza />
 
         {cargandoPlan ? (
           <VistaCargando mensaje="Cargando tu semana..." />
@@ -242,24 +235,6 @@ const estilos = StyleSheet.create({
   logo: {
     width: 155,
     height: 45,
-  },
-
-  // AUTH: coloca el botón de cerrar sesión a la derecha del header,
-  // sin mover el logo del centro
-  botonCerrarSesion: {
-    position: 'absolute',
-    right: espaciado.md,
-    top: espaciado.sm,
-    paddingVertical: espaciado.xs,
-    paddingHorizontal: espaciado.sm,
-    borderWidth: 1,
-    borderColor: colors.vino,
-    borderRadius: radios.pill,
-  },
-  textoCerrarSesion: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.vino,
   },
   buscadorContenedor: {
     paddingHorizontal: espaciado.md,
