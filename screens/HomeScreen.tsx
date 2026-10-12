@@ -151,6 +151,21 @@ export function HomeScreen() {
           >
             <Text style={estilos.textoCerrarSesion}>Cerrar sesión</Text>
           </Pressable>
+
+          {/* AUTH: temporal. Botón para cambiar contraseña mientras no exista
+              Perfil; usa el mismo estilo, pero en la esquina izquierda */}
+          <Pressable
+            onPress={() => navigation.navigate('CambiarContrasena')}
+            style={({ pressed }) => [
+              estilos.botonCerrarSesion,
+              { right: undefined, left: espaciado.md },
+              pressed && { opacity: 0.6 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar contraseña"
+          >
+            <Text style={estilos.textoCerrarSesion}>Cambiar contraseña</Text>
+          </Pressable>
         </View>
 
         <View style={estilos.buscadorContenedor}>

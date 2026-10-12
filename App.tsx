@@ -16,6 +16,10 @@ import { ActivityIndicator } from 'react-native';
 import LoginScreen from './auth/LoginScreen';
 import SignUpScreen from './auth/SignUpScreen';
 import useSession from './auth/useSession';
+// AUTH: recuperar clave y cambiar contraseña
+import RecuperarClaveScreen from './auth/RecuperarClaveScreen';
+import NuevaContrasenaScreen from './auth/NuevaContrasenaScreen';
+import CambiarContrasenaScreen from './auth/CambiarContrasenaScreen';
 
 import { WeekPlanScreen } from './screens/WeekPlanScreen';
 
@@ -28,6 +32,11 @@ export type RootStackParamList = {
   // AUTH: pantallas para cuando no hay sesión
   Login: undefined;
   SignUp: undefined;
+  // AUTH: recuperar clave (sin sesión), nueva contraseña (sesión de
+  // recuperación) y cambiar contraseña (con sesión)
+  RecuperarClave: undefined;
+  NuevaContrasena: undefined;
+  CambiarContrasena: undefined;
   TuSemana: { fechaInicial?: string } | undefined;
 };
 
@@ -56,7 +65,9 @@ export default function App() {
 
   // AUTH: leemos la sesión. Mientras carga, mostramos un indicador para que
   // no aparezca el Login por un instante si el usuario ya tenía sesión.
-  const { session, cargando } = useSession();
+  // AUTH: recuperando dice si la sesión viene de "Recuperar clave"
+  const { session, cargando, recuperando, terminarRecuperacion, cancelarRecuperacion } =
+    useSession();
   if (cargando) {
     return (
       <View style={styles.container}>
@@ -83,7 +94,19 @@ export default function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {/* AUTH: si hay sesión se muestran las pantallas de la app; si no,
               Login y SignUp. Al iniciar/cerrar sesión cambia solo. */}
-          {session ? (
+          {/* AUTH: con sesión de recuperación solo se muestra la pantalla de
+              nueva contraseña. Le pasamos las funciones de este useSession
+              para que, al terminar o cancelar, App.tsx cambie de pantalla. */}
+          {session && recuperando ? (
+            <Stack.Screen name="NuevaContrasena">
+              {() => (
+                <NuevaContrasenaScreen
+                  onTerminar={terminarRecuperacion}
+                  onCancelar={cancelarRecuperacion}
+                />
+              )}
+            </Stack.Screen>
+          ) : session ? (
             <>
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="Recetario" component={RecetarioScreen} />
@@ -96,6 +119,8 @@ export default function App() {
                 options={{ headerShown: true, title: 'Alergias' }}
               />
               <Stack.Screen name="TuSemana" component={WeekPlanScreen}/>
+              {/* AUTH: cambiar contraseña con sesión */}
+              <Stack.Screen name="CambiarContrasena" component={CambiarContrasenaScreen} />
             </>
           ) : (
             <>
@@ -106,6 +131,8 @@ export default function App() {
                 component={SignUpScreen}
                 options={{ headerShown: true, title: 'Registro' }}
               />
+              {/* AUTH: recuperar clave, pasos 1 y 2 */}
+              <Stack.Screen name="RecuperarClave" component={RecuperarClaveScreen} />
             </>
           )}
         </Stack.Navigator>
