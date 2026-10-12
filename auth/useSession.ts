@@ -110,13 +110,22 @@ export default function useSession() {
     setRecuperando(false);
   }
 
+  // AUTH: se llama en cuanto la nueva contraseña se guardó, antes de mostrar
+  // la pantalla de éxito. Solo borra el dato del celular; "recuperando" sigue
+  // en true para que se vea el éxito. Si la persona cierra la app ahí, al
+  // abrirla entra a la Home en vez de pedirle otra contraseña.
+  async function olvidarRecuperacionGuardada() {
+    await guardarRecuperando(false);
+  }
+
   // AUTH: se llama al tocar "Cancelar" en el paso 3. Cierra la sesión de
   // recuperación y regresa al Login; la contraseña anterior sigue igual.
   async function cancelarRecuperacion() {
     try {
-      // (nuevo) Aunque no haya internet, Supabase borra la sesión del
-      // celular y lanza SIGNED_OUT, así que siempre se regresa al Login.
-      const { error } = await supabase.auth.signOut();
+      // (nuevo) scope "local" cierra solo la sesión de este celular, no las
+      // de otros dispositivos. Aunque no haya internet, Supabase borra la
+      // sesión del celular y lanza SIGNED_OUT, así que siempre se regresa al Login.
+      const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) {
         console.log(error.code, error.message);
       }
@@ -135,6 +144,7 @@ export default function useSession() {
     cerrarSesion,
     recuperando,
     terminarRecuperacion,
+    olvidarRecuperacionGuardada,
     cancelarRecuperacion,
   };
 }

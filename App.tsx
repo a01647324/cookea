@@ -2,14 +2,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { HomeScreen } from './screens/HomeScreen';
-import { RecetarioScreen } from './screens/RecetarioScreen';
-import { RecipeDetailScreen } from './screens/RecipeDetailScreen';
+import { NavigatorScreenParams } from '@react-navigation/native';
+// BARRA: la Home, Recetario, RecetaDetalle, Alergias y TuSemana ahora viven
+// dentro de la barra inferior (pestaña "Inicio"), en navegacion/BarraInferior.tsx
+import BarraInferior, { BarraParamList } from './navegacion/BarraInferior';
 
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { supabase } from './lib/supabase';
-import Alergias from './screens/alergias';
 
 // AUTH: pantallas de Login/SignUp y el hook que dice si hay sesión
 import { ActivityIndicator } from 'react-native';
@@ -19,25 +19,21 @@ import useSession from './auth/useSession';
 // AUTH: recuperar clave y cambiar contraseña
 import RecuperarClaveScreen from './auth/RecuperarClaveScreen';
 import NuevaContrasenaScreen from './auth/NuevaContrasenaScreen';
-import CambiarContrasenaScreen from './auth/CambiarContrasenaScreen';
-
-import { WeekPlanScreen } from './screens/WeekPlanScreen';
 
 // Define qué parámetros recibe cada pantalla al navegar hacia ella.
+// BARRA: las pantallas con sesión están en los tipos InicioParamList y
+// CuentaParamList de navegacion/BarraInferior.tsx
 export type RootStackParamList = {
-  Home: undefined;
-  Recetario: { busquedaInicial?: string } | undefined;
-  RecetaDetalle: { recetaId: number };
-  Alergias: undefined;
+  // BARRA: "Tabs" es la barra inferior; reemplaza a "Home", que ahora es su
+  // pestaña "Inicio"
+  Tabs: NavigatorScreenParams<BarraParamList> | undefined;
   // AUTH: pantallas para cuando no hay sesión
   Login: undefined;
   SignUp: undefined;
-  // AUTH: recuperar clave (sin sesión), nueva contraseña (sesión de
-  // recuperación) y cambiar contraseña (con sesión)
+  // AUTH: recuperar clave (sin sesión) y nueva contraseña (sesión de
+  // recuperación). CambiarContrasena ahora está en la pestaña "Cuenta".
   RecuperarClave: undefined;
   NuevaContrasena: undefined;
-  CambiarContrasena: undefined;
-  TuSemana: { fechaInicial?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -66,8 +62,14 @@ export default function App() {
   // AUTH: leemos la sesión. Mientras carga, mostramos un indicador para que
   // no aparezca el Login por un instante si el usuario ya tenía sesión.
   // AUTH: recuperando dice si la sesión viene de "Recuperar clave"
-  const { session, cargando, recuperando, terminarRecuperacion, cancelarRecuperacion } =
-    useSession();
+  const {
+    session,
+    cargando,
+    recuperando,
+    terminarRecuperacion,
+    olvidarRecuperacionGuardada,
+    cancelarRecuperacion,
+  } = useSession();
   if (cargando) {
     return (
       <View style={styles.container}>
@@ -90,7 +92,7 @@ export default function App() {
             regresar). headerShown:false porque cada pantalla ya dibuja su
             propio encabezado (el logo COOKEA, flecha de regreso, etc). */}
         {/* AUTH: se quitó initialRouteName="Home"; la primera pantalla de
-            cada grupo (Home o Login) es la inicial. */}
+            cada grupo (la barra o Login) es la inicial. */}
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {/* AUTH: si hay sesión se muestran las pantallas de la app; si no,
               Login y SignUp. Al iniciar/cerrar sesión cambia solo. */}
@@ -101,27 +103,17 @@ export default function App() {
             <Stack.Screen name="NuevaContrasena">
               {() => (
                 <NuevaContrasenaScreen
+                  onGuardada={olvidarRecuperacionGuardada}
                   onTerminar={terminarRecuperacion}
                   onCancelar={cancelarRecuperacion}
                 />
               )}
             </Stack.Screen>
           ) : session ? (
-            <>
-              <Stack.Screen name="Home" component={HomeScreen} />
-              <Stack.Screen name="Recetario" component={RecetarioScreen} />
-              <Stack.Screen name="RecetaDetalle" component={RecipeDetailScreen} />
-              {/* Alergias sí lleva header nativo simple, porque su propio diseño
-                  no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
-              <Stack.Screen
-                name="Alergias"
-                component={Alergias}
-                options={{ headerShown: true, title: 'Alergias' }}
-              />
-              <Stack.Screen name="TuSemana" component={WeekPlanScreen}/>
-              {/* AUTH: cambiar contraseña con sesión */}
-              <Stack.Screen name="CambiarContrasena" component={CambiarContrasenaScreen} />
-            </>
+            // BARRA: con sesión, solo la barra inferior. Cada pestaña tiene
+            // su propio Stack con sus pantallas (ver navegacion/BarraInferior.tsx),
+            // así la barra se ve en todas.
+            <Stack.Screen name="Tabs" component={BarraInferior} />
           ) : (
             <>
               {/* AUTH: pantallas sin sesión */}

@@ -21,13 +21,14 @@ const MENSAJE_SIN_CONEXION = "No hay conexión. Revisa tu internet e intenta de 
 // App.tsx le pasa estas funciones de useSession, para que al terminar o
 // cancelar cambie la pantalla que se muestra.
 type Props = {
+  onGuardada: () => Promise<void>; // borra el dato "recuperando" del celular
   onTerminar: () => void;
   onCancelar: () => Promise<void>;
 };
 
 // NuevaContrasenaScreen: paso 3 de "Recuperar clave".
 // Ya hay sesión (el código del correo fue correcto); falta la nueva contraseña.
-export default function NuevaContrasenaScreen({ onTerminar, onCancelar }: Props) {
+export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancelar }: Props) {
   // (clase) Un useState por cada campo y cada mensaje
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
@@ -93,6 +94,9 @@ export default function NuevaContrasenaScreen({ onTerminar, onCancelar }: Props)
         mostrarError(error);
         return;
       }
+      // La contraseña ya cambió: borramos el dato del celular antes de
+      // mostrar el éxito, por si la persona cierra la app en esa pantalla.
+      await onGuardada();
       setListo(true);
     } catch (e) {
       console.log("Error al guardar la contraseña", e);

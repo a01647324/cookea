@@ -126,7 +126,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
   // Pantalla de éxito, con un botón para volver (no una alerta)
   if (listo) {
     return (
-      <SafeAreaView style={styles.pantalla}>
+      <SafeAreaView style={styles.pantalla} edges={["top"]}>
         <View style={styles.contenido}>
           <Text style={styles.titulo} accessibilityRole="header">
             Tu contraseña se actualizó
@@ -149,7 +149,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.pantalla}>
+    <SafeAreaView style={styles.pantalla} edges={["top"]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
