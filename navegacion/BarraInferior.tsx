@@ -1,8 +1,8 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigatorScreenParams } from "@react-navigation/native";
-import { colors } from "../theme/theme";
-import { Ionicons } from '@expo/vector-icons';
+import { Alert } from "react-native";
+import BarraPestanas from "./BarraPestanas";
 
 // Pantallas de la pestaña "Inicio"
 import { AlacenaScreen } from "../screens/AlacenaScreen";
@@ -13,6 +13,9 @@ import { WeekPlanScreen } from "../screens/WeekPlanScreen";
 import { ModoCocinaScreen } from '../screens/ModoCocinaScreen';
 import Alergias from "../screens/alergias";
 import PersonalizaScreen from "../perfil/PersonalizaScreen";
+
+// Pantallas de la pestaña "Comunidad"
+import ComunidadScreen from "../screens/ComunidadScreen";
 
 // Pantallas de la pestaña "Cuenta"
 import PerfilScreen from "../perfil/PerfilScreen";
@@ -36,6 +39,10 @@ export type InicioParamList = {
   Alacena: undefined;           
 };
 
+export type ComunidadParamList = {
+  ComunidadFeed: undefined;
+};
+
 export type CuentaParamList = {
   Perfil: undefined;
   EditarPerfil: undefined;
@@ -46,6 +53,7 @@ export type CuentaParamList = {
 // BARRA: las pestañas de la barra
 export type BarraParamList = {
   Inicio: NavigatorScreenParams<InicioParamList> | undefined;
+  Comunidad: NavigatorScreenParams<ComunidadParamList> | undefined;
   Cuenta: NavigatorScreenParams<CuentaParamList> | undefined;
 };
 
@@ -53,6 +61,7 @@ export type BarraParamList = {
 // receta desde la Home, la pantalla se apila DENTRO de la pestaña "Inicio" y
 // la barra sigue visible abajo. Cada pestaña recuerda en qué pantalla se quedó.
 const InicioStack = createNativeStackNavigator<InicioParamList>();
+const ComunidadStack = createNativeStackNavigator<ComunidadParamList>();
 const CuentaStack = createNativeStackNavigator<CuentaParamList>();
 const Tab = createBottomTabNavigator<BarraParamList>();
 
@@ -82,6 +91,30 @@ function PestanaInicio() {
   );
 }
 
+function PestanaComunidad() {
+  return (
+    <ComunidadStack.Navigator screenOptions={{ headerShown: false }}>
+      <ComunidadStack.Screen name="ComunidadFeed">
+        {({ navigation }) => (
+          <ComunidadScreen
+            // Temporal: abre el detalle normal hasta que exista el de comunidad
+            onAbrirReceta={(id) =>
+              navigation.getParent()?.navigate("Inicio", {
+                screen: "RecetaDetalle",
+                params: { recetaId: id },
+              })
+            }
+            onPublicar={() => Alert.alert("Próximamente", "Crear receta está en construcción.")}
+            onMisPublicaciones={() =>
+              Alert.alert("Próximamente", "Mis publicaciones está en construcción.")
+            }
+          />
+        )}
+      </ComunidadStack.Screen>
+    </ComunidadStack.Navigator>
+  );
+}
+
 function PestanaCuenta() {
   return (
     <CuentaStack.Navigator screenOptions={{ headerShown: false }}>
@@ -94,75 +127,20 @@ function PestanaCuenta() {
 }
 
 // BarraInferior: es la única pantalla de App.tsx cuando hay sesión.
-// Dentro de una pestaña se navega igual que antes:
-// navigation.navigate("Recetario") desde la Home.
-//
-// BARRA: cómo agregar una pestaña nueva (por ejemplo "Favoritos"):
-//   1. Si la pestaña tendrá varias pantallas, crea su Stack igual que
-//      PestanaInicio: un tipo FavoritosParamList, un
-//      createNativeStackNavigator<FavoritosParamList>() y una función
-//      PestanaFavoritos con sus <Stack.Screen>. Si es una sola pantalla,
-//      puedes usar la pantalla directamente.
-//   2. Agrega su nombre en BarraParamList:
-//        Favoritos: NavigatorScreenParams<FavoritosParamList> | undefined;
-//   3. Agrega un <Tab.Screen> abajo, en el orden en que debe aparecer:
-//        <Tab.Screen name="Favoritos" component={PestanaFavoritos} />
-//   4. Si quieres ícono, agrega en options:
-//        tabBarIcon: ({ color, size }) => (
-//          <Image source={require("../assets/images/icons/heart.png")}
-//                 style={{ width: size, height: size, tintColor: color }} />
-//        ),
-//      y quita tabBarIconStyle de screenOptions, que ahora oculta los íconos.
-//   5. Si la pantalla ya estaba en el Stack de otra pestaña (por ejemplo,
-//      Recetario en PestanaInicio), quítala de ahí para que no esté repetida.
+// La barra se dibuja con BarraPestanas.tsx (círculo elevado en la pestaña
+// activa). Para agregar una pestaña: crea su Stack, agrégala a BarraParamList,
+// agrega su <Tab.Screen> en orden y su ícono en ICONOS de BarraPestanas.tsx.
+// Si la pantalla ya estaba en el Stack de otra pestaña, quítala de ahí.
 export default function BarraInferior() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-
-        tabBarActiveTintColor: colors.olivaOscuro,
-        tabBarInactiveTintColor: colors.textoSecundario,
-
-        tabBarIcon: ({ color, size }) => {
-          const nombreIcono =
-            route.name === 'Inicio'
-              ? 'home-outline'
-              : 'person-outline';
-
-          return (
-            <Ionicons
-              name={nombreIcono}
-              size={size}
-              color={color}
-            />
-          );
-        },
-
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
-
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: colors.background,
-          paddingTop: 5,
-        },
-
-        tabBarHideOnKeyboard: true,
-      })}
+      initialRouteName="Inicio"
+      tabBar={(props) => <BarraPestanas {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen
-        name="Inicio"
-        component={PestanaInicio}
-      />
-
-      <Tab.Screen
-        name="Cuenta"
-        component={PestanaCuenta}
-      />
+      <Tab.Screen name="Inicio" component={PestanaInicio} />
+      <Tab.Screen name="Comunidad" component={PestanaComunidad} />
+      <Tab.Screen name="Cuenta" component={PestanaCuenta} options={{ tabBarLabel: "Perfil" }} />
     </Tab.Navigator>
   );
 }
