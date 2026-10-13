@@ -55,6 +55,7 @@ export function RecipeCard({ receta, colorFondo, onPress, variante = 'lista' }: 
       <View
         style={[
           estilos.textoContenedor,
+          esCarrusel && estilos.textoCarrusel,
           esRecetario && estilos.textoRecetario,
         ]}
       >
@@ -85,7 +86,7 @@ const estilos = StyleSheet.create({
   },
   carrusel: {
     width: 170,
-    height: 140,
+    height: 200,
     marginRight: espaciado.md,
     flexDirection: 'column',
     alignItems: 'stretch',
@@ -98,7 +99,7 @@ const estilos = StyleSheet.create({
   },
   imagenCarrusel: {
     width: '100%',
-    height: 90,
+    height: 115,
   },
   imagenRespaldo: {
     backgroundColor: 'rgba(255,255,255,0.35)',
@@ -135,5 +136,12 @@ const estilos = StyleSheet.create({
   textoRecetario: {
     justifyContent: 'center',
     paddingHorizontal: espaciado.md,
+  },
+
+  textoCarrusel: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: espaciado.md,
+    paddingVertical: espaciado.sm,
   },
 });

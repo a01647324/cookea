@@ -50,12 +50,16 @@ export function HomeScreen() {
     error: errorDestacadas,
     recargar: recargarDestacadas,
   } = useFeaturedRecipes(6);
-
+  
   const [refrescando, setRefrescando] = React.useState(false);
 
   async function alJalarParaRefrescar() {
     setRefrescando(true);
-    await Promise.all([recargarPlan(), recargarDestacadas()]);
+    await Promise.all([
+      recargarPlan(),
+      recargarDestacadas(),
+      recargarPerfil(),
+    ]);
     setRefrescando(false);
   }
 
@@ -127,7 +131,14 @@ export function HomeScreen() {
   return (
     <SafeAreaView style={estilos.pantalla} edges={['top']}>
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={alJalarParaRefrescar} />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={estilos.contenidoScroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refrescando}
+            onRefresh={alJalarParaRefrescar}
+          />
+        }
       >
         <View style={estilos.header}>
         <Image 
@@ -190,12 +201,27 @@ export function HomeScreen() {
 
         <View style={estilos.seccionDestacadas}>
           <Text style={tipografia.subtitulo}>Recomendadas para ti</Text>
+
           {cargandoDestacadas ? (
             <VistaCargando />
           ) : errorDestacadas ? (
             <VistaError mensaje={errorDestacadas} onReintentar={recargarDestacadas} />
+          ) : destacadas.length === 0 ? (
+            <View style={estilos.sinRecomendaciones}>
+              <Text style={estilos.textoSinRecomendaciones}>
+                Todavía no hay recetas recomendadas disponibles.
+              </Text>
+              
+            </View>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: espaciado.sm }}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{
+                  marginTop: espaciado.sm,
+                  minHeight: 210,
+                }}
+              >
               {destacadas.map((receta, indice) => (
                 <RecipeCard
                   key={receta.id}
@@ -244,5 +270,22 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaciado.md,
     marginTop: espaciado.lg,
     marginBottom: espaciado.xl,
+  },
+
+  contenidoScroll: {
+    paddingBottom: espaciado.xl,
+  },
+
+  sinRecomendaciones: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: espaciado.md,
+    marginTop: espaciado.sm,
+  },
+
+  textoSinRecomendaciones: {
+    color: colors.textoPrincipal,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

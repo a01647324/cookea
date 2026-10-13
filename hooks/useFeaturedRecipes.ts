@@ -15,24 +15,26 @@ export function useFeaturedRecipes(limite: number = 6) {
       const idsExcluidos = await obtenerIdsRecetasConAlergia();
 
       let consulta = supabase
-        .from('recetas_calificacion')
-        .select('receta_id, promedio, total, recetas!inner(id, nombre, tiempo_min, foto_url, visible)')
-        .eq('recetas.visible', true)
-        .order('promedio', { ascending: false })
+        .from('recetas')
+        .select('id, nombre, tiempo_min, foto_url')
+        .eq('visible', true)
+        .order('id', { ascending: false })
         .limit(limite);
 
       if (idsExcluidos.length > 0) {
-        consulta = consulta.not('receta_id', 'in', `(${idsExcluidos.join(',')})`);
+        consulta = consulta.not(
+          'id',
+          'in',
+          `(${idsExcluidos.join(',')})`
+        );
       }
 
       const { data, error: errorConsulta } = await consulta;
+      
       if (errorConsulta) throw errorConsulta;
 
-      const resumen = (data ?? [])
-        .map((fila: any) => fila.recetas as RecetaResumen)
-        .filter(Boolean);
+      setRecetas((data ?? []) as RecetaResumen[]);
 
-      setRecetas(resumen);
     } catch (e: any) {
       setError(e.message ?? 'No se pudieron cargar las recomendaciones');
     } finally {
