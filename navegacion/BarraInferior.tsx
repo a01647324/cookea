@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigatorScreenParams } from "@react-navigation/native";
 import { colors } from "../theme/theme";
+import { Ionicons } from '@expo/vector-icons';
 
 // Pantallas de la pestaña "Inicio"
 import { AlacenaScreen } from "../screens/AlacenaScreen";
@@ -26,7 +27,10 @@ export type InicioParamList = {
   Recetario: { busquedaInicial?: string } | undefined;
   RecetaDetalle: { recetaId: number };
   Alergias: undefined;
-  ModoCocina: {recetaId: number; pociones?: number;};
+  ModoCocina: {
+    recetaId: number;
+    porciones?: number;
+  };
   TuSemana: { fechaInicial?: string } | undefined;
   Personaliza: undefined;
   Alacena: undefined;           
@@ -114,22 +118,51 @@ function PestanaCuenta() {
 export default function BarraInferior() {
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false, // cada pantalla dibuja su propio encabezado
+      screenOptions={({ route }) => ({
+        headerShown: false,
+
         tabBarActiveTintColor: colors.olivaOscuro,
         tabBarInactiveTintColor: colors.textoSecundario,
-        // BARRA: por ahora solo etiquetas: en assets/images/icons/ no hay
-        // íconos para "Inicio" ni "Cuenta". Cuando haya, quita esta línea.
-        tabBarIconStyle: { display: "none" },
-        tabBarLabelStyle: { fontSize: 16, fontWeight: "700" },
-        tabBarStyle: { minHeight: 56, backgroundColor: colors.surface },
-        // (nuevo) En Android, esconde la barra mientras el teclado está
-        // abierto, para que no tape los campos ni el botón de Guardar.
+
+        tabBarIcon: ({ color, size }) => {
+          const nombreIcono =
+            route.name === 'Inicio'
+              ? 'home-outline'
+              : 'person-outline';
+
+          return (
+            <Ionicons
+              name={nombreIcono}
+              size={size}
+              color={color}
+            />
+          );
+        },
+
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.background,
+          paddingTop: 5,
+        },
+
         tabBarHideOnKeyboard: true,
-      }}
+      })}
     >
-      <Tab.Screen name="Inicio" component={PestanaInicio} />
-      <Tab.Screen name="Cuenta" component={PestanaCuenta} />
+      <Tab.Screen
+        name="Inicio"
+        component={PestanaInicio}
+      />
+
+      <Tab.Screen
+        name="Cuenta"
+        component={PestanaCuenta}
+      />
     </Tab.Navigator>
   );
 }
