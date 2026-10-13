@@ -79,11 +79,7 @@ export function HomeScreen() {
   
       icono: require('../assets/images/icons/cupboard.png'),
   
-      onPress: () =>
-        Alert.alert(
-          'Próximamente',
-          'La Alacena está en construcción.'
-        ),
+      onPress: () => navigation.navigate('Alacena'),
     },
   
     {
