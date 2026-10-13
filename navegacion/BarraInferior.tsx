@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { NavigatorScreenParams } from "@react-navigation/native";
+import { NavigatorScreenParams, getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { Alert } from "react-native";
 import BarraPestanas from "./BarraPestanas";
 
@@ -17,6 +17,8 @@ import PersonalizaScreen from "../perfil/PersonalizaScreen";
 // Pantallas de la pestaña "Comunidad"
 import ComunidadScreen from "../screens/ComunidadScreen";
 import DetalleComunidadScreen from "../screens/DetalleComunidadScreen";
+import CrearRecetaScreen from "../screens/CrearRecetaScreen";
+import MisPublicacionesScreen from "../screens/MisPublicacionesScreen";
 
 // Pantallas de la pestaña "Cuenta"
 import PerfilScreen from "../perfil/PerfilScreen";
@@ -42,7 +44,9 @@ export type InicioParamList = {
 
 export type ComunidadParamList = {
   ComunidadFeed: undefined;
-  DetalleComunidad: { recetaId: number };
+  DetalleComunidad: { recetaId: number; version?: number };
+  CrearReceta: { recetaId?: number } | undefined;
+  MisPublicaciones: undefined;
   ModoCocina: {
     recetaId: number;
     porciones?: number;
@@ -70,6 +74,9 @@ const InicioStack = createNativeStackNavigator<InicioParamList>();
 const ComunidadStack = createNativeStackNavigator<ComunidadParamList>();
 const CuentaStack = createNativeStackNavigator<CuentaParamList>();
 const Tab = createBottomTabNavigator<BarraParamList>();
+
+// Pantallas a pantalla completa: la barra inferior se oculta en ellas
+const PANTALLAS_SIN_BARRA = ["CrearReceta", "ModoCocina"];
 
 // (clase) headerShown:false porque cada pantalla dibuja su propio encabezado
 function PestanaInicio() {
@@ -104,10 +111,8 @@ function PestanaComunidad() {
         {({ navigation }) => (
           <ComunidadScreen
             onAbrirReceta={(id) => navigation.navigate("DetalleComunidad", { recetaId: id })}
-            onPublicar={() => Alert.alert("Próximamente", "Crear receta está en construcción.")}
-            onMisPublicaciones={() =>
-              Alert.alert("Próximamente", "Mis publicaciones está en construcción.")
-            }
+            onPublicar={() => navigation.navigate("CrearReceta")}
+            onMisPublicaciones={() => navigation.navigate("MisPublicaciones")}
           />
         )}
       </ComunidadStack.Screen>
@@ -115,15 +120,39 @@ function PestanaComunidad() {
         {({ navigation, route }) => (
           <DetalleComunidadScreen
             recetaId={route.params.recetaId}
+            version={route.params.version}
             onVolver={() => navigation.goBack()}
             onCocinar={(porciones) =>
               navigation.navigate("ModoCocina", { recetaId: route.params.recetaId, porciones })
             }
-            onEditar={() => Alert.alert("Próximamente", "Editar receta está en construcción.")}
+            onEditar={(id) => navigation.navigate("CrearReceta", { recetaId: id })}
             onAgregarSemana={() =>
               Alert.alert("Próximamente", "Agregar a mi semana está en construcción.")
             }
             onYaLaPrepare={() => Alert.alert("Próximamente", "Ya la preparé está en construcción.")}
+          />
+        )}
+      </ComunidadStack.Screen>
+      <ComunidadStack.Screen name="MisPublicaciones">
+        {({ navigation }) => (
+          <MisPublicacionesScreen
+            onVolver={() => navigation.goBack()}
+            onAbrir={(id) => navigation.navigate("DetalleComunidad", { recetaId: id })}
+            onEditar={(id) => navigation.navigate("CrearReceta", { recetaId: id })}
+            onPublicar={() => navigation.navigate("CrearReceta")}
+          />
+        )}
+      </ComunidadStack.Screen>
+      <ComunidadStack.Screen name="CrearReceta">
+        {({ navigation, route }) => (
+          <CrearRecetaScreen
+            recetaId={route.params?.recetaId}
+            onCerrar={() => navigation.goBack()}
+            onPublicada={(id, fueEdicion) =>
+              fueEdicion
+                ? navigation.popTo("DetalleComunidad", { recetaId: id, version: Date.now() })
+                : navigation.replace("DetalleComunidad", { recetaId: id })
+            }
           />
         )}
       </ComunidadStack.Screen>
@@ -156,7 +185,15 @@ export default function BarraInferior() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Inicio" component={PestanaInicio} />
-      <Tab.Screen name="Comunidad" component={PestanaComunidad} />
+      <Tab.Screen
+        name="Comunidad"
+        component={PestanaComunidad}
+        options={({ route }) => ({
+          tabBarStyle: PANTALLAS_SIN_BARRA.includes(getFocusedRouteNameFromRoute(route) ?? "")
+            ? { display: "none" }
+            : undefined,
+        })}
+      />
       <Tab.Screen name="Cuenta" component={PestanaCuenta} options={{ tabBarLabel: "Perfil" }} />
     </Tab.Navigator>
   );

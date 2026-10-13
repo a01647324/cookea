@@ -184,6 +184,19 @@ export default function PerfilScreen({ navigation }: any) {
           <Text style={styles.textoBotonPrincipal}>Editar preferencias</Text>
         </TouchableOpacity>
 
+        {/* COMUNIDAD: abre Mis publicaciones dentro de la pestaña Comunidad.
+            initial: false deja el feed debajo para que "regresar" funcione. */}
+        <TouchableOpacity
+          style={styles.botonSecundario}
+          onPress={() =>
+            navigation.navigate("Comunidad", { screen: "MisPublicaciones", initial: false })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Mis publicaciones"
+        >
+          <Text style={styles.textoBotonSecundario}>Mis publicaciones</Text>
+        </TouchableOpacity>
+
         {/* Abre la pantalla de la Etapa 1 */}
         <TouchableOpacity
           style={styles.botonSecundario}
