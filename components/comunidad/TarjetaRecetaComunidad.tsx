@@ -129,7 +129,9 @@ const estilos = StyleSheet.create({
     position: 'absolute',
     bottom: espaciado.sm + 2,
     left: espaciado.sm + 2,
-    backgroundColor: colors.calido,
+    backgroundColor: colors.vidrio,
+    borderWidth: 1,
+    borderColor: colors.vidrioBorde,
     borderRadius: radios.pill,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -137,8 +139,8 @@ const estilos = StyleSheet.create({
   textoEtiqueta: {
     fontFamily: fuentes.semibold,
     fontSize: 12,
-    letterSpacing: 0.3,
-    color: colors.texto,
+    letterSpacing: 0.4,
+    color: colors.sobreAcento,
   },
   cuerpo: {
     paddingHorizontal: espaciado.md,
@@ -177,15 +179,18 @@ const estilos = StyleSheet.create({
     gap: 4,
   },
   nueva: {
-    backgroundColor: colors.calificacion,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.calidoSuave,
     borderRadius: radios.pill,
     paddingHorizontal: 8,
-    paddingVertical: 1,
+    paddingVertical: 2,
   },
   textoNueva: {
     fontFamily: fuentes.semibold,
     fontSize: 11,
     letterSpacing: 0.3,
-    color: colors.texto,
+    color: colors.textoSuave,
   },
 });

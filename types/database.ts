@@ -84,3 +84,11 @@ export interface RecetaComunidad extends RecetaResumen {
   promedio: number | null;
   total: number;
 }
+
+export interface Comentario {
+  id: number;
+  texto: string;
+  creado_en: string;
+  usuario_id: string;
+  alias: string;
+}
