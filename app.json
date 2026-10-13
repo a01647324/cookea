@@ -22,7 +22,16 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      "expo-font",
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cookea usa tus fotos para que puedas agregar una imagen a tu receta.",
+          "cameraPermission": "Cookea usa la cámara para que tomes una foto de tu receta."
+        }
+      ]
     ]
   }
 }

@@ -1,3 +1,7 @@
+import { useFonts } from 'expo-font';
+import { Lora_700Bold } from '@expo-google-fonts/lora';
+import { Quicksand_500Medium, Quicksand_600SemiBold, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -59,6 +63,14 @@ export default function App() {
     probarConexion();
   }, []);
 
+
+  const [fuentesListas] = useFonts({
+    Lora_700Bold,
+    Quicksand_500Medium,
+    Quicksand_600SemiBold,
+    Quicksand_700Bold,
+  });
+
   // AUTH: leemos la sesión. Mientras carga, mostramos un indicador para que
   // no aparezca el Login por un instante si el usuario ya tenía sesión.
   // AUTH: recuperando dice si la sesión viene de "Recuperar clave"
@@ -70,7 +82,7 @@ export default function App() {
     olvidarRecuperacionGuardada,
     cancelarRecuperacion,
   } = useSession();
-  if (cargando) {
+  if (cargando || !fuentesListas) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" />
