@@ -76,3 +76,11 @@ export interface PlanSemanalItem {
   receta_id: number;
   recetas: RecetaResumen;
 }
+
+export interface RecetaComunidad extends RecetaResumen {
+  creado_en: string;
+  autor_alias: string;
+  etiqueta: string | null;
+  promedio: number | null;
+  total: number;
+}

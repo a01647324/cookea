@@ -106,14 +106,8 @@ export function HomeScreen() {
       titulo: 'Comunidad',
       subtitulo: 'Comparte tus recetas',
       color: colors.olivaOscuro,
-  
       icono: require('../assets/images/icons/group.png'),
-  
-      onPress: () =>
-        Alert.alert(
-          'Próximamente',
-          'Comunidad está en construcción.'
-        ),
+      onPress: () => navigation.navigate('Comunidad'),
     },
   
     {
