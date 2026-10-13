@@ -42,6 +42,15 @@ export const colors = {
   neutro: paleta.arena,
   borde: '#E2DCD6',
   peligro: paleta.chile,
+  fondoHundido: '#E6E0DA',
+
+  // Versiones translúcidas para etiquetas y avisos
+  vidrio: 'rgba(38, 22, 13, 0.55)',
+  vidrioBorde: 'rgba(255, 255, 255, 0.35)',
+  calidoSuave: 'rgba(217, 155, 102, 0.18)',
+  acentoSuave: 'rgba(175, 168, 87, 0.2)',
+  peligroSuave: 'rgba(181, 18, 11, 0.08)',
+  peligroBorde: 'rgba(181, 18, 11, 0.35)',
 
   // Claves anteriores
   background: paleta.hueso,

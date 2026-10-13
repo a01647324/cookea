@@ -16,6 +16,7 @@ import PersonalizaScreen from "../perfil/PersonalizaScreen";
 
 // Pantallas de la pestaña "Comunidad"
 import ComunidadScreen from "../screens/ComunidadScreen";
+import DetalleComunidadScreen from "../screens/DetalleComunidadScreen";
 
 // Pantallas de la pestaña "Cuenta"
 import PerfilScreen from "../perfil/PerfilScreen";
@@ -41,6 +42,11 @@ export type InicioParamList = {
 
 export type ComunidadParamList = {
   ComunidadFeed: undefined;
+  DetalleComunidad: { recetaId: number };
+  ModoCocina: {
+    recetaId: number;
+    porciones?: number;
+  };
 };
 
 export type CuentaParamList = {
@@ -97,13 +103,7 @@ function PestanaComunidad() {
       <ComunidadStack.Screen name="ComunidadFeed">
         {({ navigation }) => (
           <ComunidadScreen
-            // Temporal: abre el detalle normal hasta que exista el de comunidad
-            onAbrirReceta={(id) =>
-              navigation.getParent()?.navigate("Inicio", {
-                screen: "RecetaDetalle",
-                params: { recetaId: id },
-              })
-            }
+            onAbrirReceta={(id) => navigation.navigate("DetalleComunidad", { recetaId: id })}
             onPublicar={() => Alert.alert("Próximamente", "Crear receta está en construcción.")}
             onMisPublicaciones={() =>
               Alert.alert("Próximamente", "Mis publicaciones está en construcción.")
@@ -111,6 +111,23 @@ function PestanaComunidad() {
           />
         )}
       </ComunidadStack.Screen>
+      <ComunidadStack.Screen name="DetalleComunidad">
+        {({ navigation, route }) => (
+          <DetalleComunidadScreen
+            recetaId={route.params.recetaId}
+            onVolver={() => navigation.goBack()}
+            onCocinar={(porciones) =>
+              navigation.navigate("ModoCocina", { recetaId: route.params.recetaId, porciones })
+            }
+            onEditar={() => Alert.alert("Próximamente", "Editar receta está en construcción.")}
+            onAgregarSemana={() =>
+              Alert.alert("Próximamente", "Agregar a mi semana está en construcción.")
+            }
+            onYaLaPrepare={() => Alert.alert("Próximamente", "Ya la preparé está en construcción.")}
+          />
+        )}
+      </ComunidadStack.Screen>
+      <ComunidadStack.Screen name="ModoCocina" component={ModoCocinaScreen} />
     </ComunidadStack.Navigator>
   );
 }
