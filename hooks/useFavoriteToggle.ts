@@ -39,7 +39,11 @@ export function useFavoriteToggle(recetaId: number | null) {
   }, [recetaId]);
 
   useEffect(() => {
-    verificarEstado();
+    const ejecutarVerificacion = async () => {
+      await verificarEstado();
+    };
+  
+    void ejecutarVerificacion();
   }, [verificarEstado]);
 
   const alternar = useCallback(async () => {

@@ -92,3 +92,30 @@ export interface Comentario {
   usuario_id: string;
   alias: string;
 }
+
+// ---------- Álbumes / Favoritos ----------
+
+export type TipoAlbum =
+  | 'favoritos'
+  | 'hacer_despues'
+  | 'ya_preparadas'
+  | 'personalizado';
+
+export interface Album {
+  id: number;
+  usuario_id: string;
+  nombre: string;
+  tipo: TipoAlbum;
+  creado_en: string;
+}
+
+export interface AlbumConConteo extends Album {
+  cantidad_recetas: number;
+}
+
+export interface AlbumReceta {
+  album_id: number;
+  receta_id: number;
+  agregado_en: string;
+  recetas: RecetaResumen;
+}
