@@ -1,8 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, espaciado, fuentes, radios, sombra, tipografia } from '../../theme/theme';
+import { colors, espaciado, fuentes, radios, sombra, tipografia, tamanos } from '../../theme/theme';
 import { RecetaComunidad } from '../../types/database';
 
 interface Props {
@@ -20,13 +19,7 @@ export function TarjetaRecetaComunidad({ receta, onPress, onGuardar, guardada = 
     <Pressable onPress={onPress} style={({ pressed }) => [estilos.tarjeta, pressed && estilos.presionada]}>
       <View>
         {receta.foto_url ? (
-          <Image
-            source={{ uri: receta.foto_url }}
-            style={estilos.foto}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-          />
+          <Image source={{ uri: receta.foto_url }} style={estilos.foto} resizeMode="cover" />
         ) : (
           <View style={[estilos.foto, estilos.fotoRespaldo]}>
             <Ionicons name="restaurant-outline" size={36} color={colors.superficieCalida} />
@@ -133,18 +126,18 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.vidrioBorde,
     borderRadius: radios.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
   },
   textoEtiqueta: {
     fontFamily: fuentes.semibold,
-    fontSize: 12,
+    fontSize: tamanos.chico,
     letterSpacing: 0.4,
     color: colors.sobreAcento,
   },
   cuerpo: {
     paddingHorizontal: espaciado.md,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: espaciado.md,
   },
   filaInferior: {
@@ -169,27 +162,27 @@ const estilos = StyleSheet.create({
   },
   iniciales: {
     fontFamily: fuentes.negrita,
-    fontSize: 11,
+    fontSize: tamanos.mini,
     letterSpacing: 0.5,
     color: colors.sobreAcento,
   },
   datos: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   nueva: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     backgroundColor: colors.calidoSuave,
     borderRadius: radios.pill,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 2,
   },
   textoNueva: {
     fontFamily: fuentes.semibold,
-    fontSize: 11,
+    fontSize: tamanos.mini,
     letterSpacing: 0.3,
     color: colors.textoSuave,
   },

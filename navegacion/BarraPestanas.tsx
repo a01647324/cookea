@@ -3,7 +3,7 @@ import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-nat
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fuentes } from '../theme/theme';
+import { colors, fuentes, tamanos } from '../theme/theme';
 
 type NombreIcono = keyof typeof Ionicons.glyphMap;
 
@@ -83,7 +83,7 @@ const estilos = StyleSheet.create({
   barra: {
     flexDirection: 'row',
     backgroundColor: colors.superficie,
-    paddingTop: 10,
+    paddingTop: 12,
     shadowColor: colors.texto,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
@@ -115,7 +115,7 @@ const estilos = StyleSheet.create({
   },
   etiqueta: {
     fontFamily: fuentes.negrita,
-    fontSize: 12,
+    fontSize: tamanos.chico,
     letterSpacing: 0.3,
     color: colors.acentoOscuro,
     marginTop: 2,
