@@ -4,6 +4,7 @@ import { NavigatorScreenParams } from "@react-navigation/native";
 import { colors } from "../theme/theme";
 
 // Pantallas de la pestaña "Inicio"
+import { AlacenaScreen } from "../screens/AlacenaScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { RecetarioScreen } from "../screens/RecetarioScreen";
 import { RecipeDetailScreen } from "../screens/RecipeDetailScreen";
@@ -28,6 +29,7 @@ export type InicioParamList = {
   ModoCocina: {recetaId: number; pociones?: number;};
   TuSemana: { fechaInicial?: string } | undefined;
   Personaliza: undefined;
+  Alacena: undefined;           
 };
 
 export type CuentaParamList = {
@@ -57,6 +59,7 @@ function PestanaInicio() {
       <InicioStack.Screen name="Home" component={HomeScreen} />
       <InicioStack.Screen name="Recetario" component={RecetarioScreen} />
       <InicioStack.Screen name="RecetaDetalle" component={RecipeDetailScreen} />
+      <InicioStack.Screen name="Alacena" component={AlacenaScreen} />
       {/* Alergias sí lleva header nativo simple, porque su propio diseño
           no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
       <InicioStack.Screen
