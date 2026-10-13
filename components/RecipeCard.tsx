@@ -7,11 +7,12 @@ interface Props {
   receta: RecetaResumen;
   colorFondo: string; 
   onPress: () => void;
-  variante?: 'lista' | 'carrusel';
+  variante?: 'lista' | 'carrusel'| 'recetario';
 }
 
 export function RecipeCard({ receta, colorFondo, onPress, variante = 'lista' }: Props) {
   const esCarrusel = variante === 'carrusel';
+  const esRecetario = variante === 'recetario';
 
   return (
     <Pressable
@@ -19,29 +20,51 @@ export function RecipeCard({ receta, colorFondo, onPress, variante = 'lista' }: 
       style={[
         estilos.base,
         { backgroundColor: colorFondo },
-        esCarrusel ? estilos.carrusel : estilos.lista,
+        esCarrusel
+          ? estilos.carrusel
+          : esRecetario
+            ? estilos.recetario
+            : estilos.lista,
       ]}
     >
       {receta.foto_url ? (
         <Image
           source={{ uri: receta.foto_url }}
-          style={esCarrusel ? estilos.imagenCarrusel : estilos.imagenLista}
+          style={
+            esCarrusel
+              ? estilos.imagenCarrusel
+              : esRecetario
+                ? estilos.imagenRecetario
+                : estilos.imagenLista
+          }
           resizeMode="cover"
         />
       ) : (
         <View
           style={[
-            esCarrusel ? estilos.imagenCarrusel : estilos.imagenLista,
+            esCarrusel
+              ? estilos.imagenCarrusel
+              : esRecetario
+                ? estilos.imagenRecetario
+                : estilos.imagenLista,
             estilos.imagenRespaldo,
           ]}
         />
       )}
 
-      <View style={estilos.textoContenedor}>
+      <View
+        style={[
+          estilos.textoContenedor,
+          esRecetario && estilos.textoRecetario,
+        ]}
+      >
         <Text style={estilos.nombre} numberOfLines={2}>
           {receta.nombre.toUpperCase()}
         </Text>
-        <Text style={estilos.tiempo}>⏱ {receta.tiempo_min} min</Text>
+
+        <Text style={estilos.tiempo}>
+          ⏱ {receta.tiempo_min} min
+        </Text>
       </View>
     </Pressable>
   );
@@ -94,5 +117,23 @@ const estilos = StyleSheet.create({
     color: colors.textoSobreColor,
     marginTop: espaciado.xs,
     fontSize: 12,
+  },
+
+  recetario: {
+    width: '100%',
+    height: 155,
+    marginBottom: espaciado.md,
+    padding: 0,
+    flexDirection: 'row',
+  },
+
+  imagenRecetario: {
+    width: '43%',
+    height: '100%',
+  },
+
+  textoRecetario: {
+    justifyContent: 'center',
+    paddingHorizontal: espaciado.md,
   },
 });

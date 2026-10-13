@@ -8,6 +8,7 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { RecetarioScreen } from "../screens/RecetarioScreen";
 import { RecipeDetailScreen } from "../screens/RecipeDetailScreen";
 import { WeekPlanScreen } from "../screens/WeekPlanScreen";
+import { ModoCocinaScreen } from '../screens/ModoCocinaScreen';
 import Alergias from "../screens/alergias";
 import PersonalizaScreen from "../perfil/PersonalizaScreen";
 
@@ -24,6 +25,7 @@ export type InicioParamList = {
   Recetario: { busquedaInicial?: string } | undefined;
   RecetaDetalle: { recetaId: number };
   Alergias: undefined;
+  ModoCocina: {recetaId: number; pociones?: number;};
   TuSemana: { fechaInicial?: string } | undefined;
   Personaliza: undefined;
 };
@@ -57,6 +59,10 @@ function PestanaInicio() {
       <InicioStack.Screen name="RecetaDetalle" component={RecipeDetailScreen} />
       {/* Alergias sí lleva header nativo simple, porque su propio diseño
           no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
+      <InicioStack.Screen
+        name="ModoCocina"
+        component={ModoCocinaScreen}
+      />
       <InicioStack.Screen
         name="Alergias"
         component={Alergias}
