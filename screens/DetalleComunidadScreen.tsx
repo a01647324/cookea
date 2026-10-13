@@ -29,6 +29,7 @@ import { RecetaIngrediente } from '../types/database';
 
 interface Props {
   recetaId: number;
+  version?: number;
   onVolver: () => void;
   onCocinar: (porciones: number) => void;
   onEditar: (id: number) => void;
@@ -57,6 +58,7 @@ function haceCuanto(fecha: string) {
 
 export default function DetalleComunidadScreen({
   recetaId,
+  version,
   onVolver,
   onCocinar,
   onEditar,
@@ -80,6 +82,15 @@ export default function DetalleComunidadScreen({
 
   const scrollRef = useRef<ScrollView>(null);
   const yComentarios = useRef(0);
+
+  // Al volver de editar, "version" cambia y la receta se recarga
+  useEffect(() => {
+    if (version) {
+      recargar();
+      comentarios.recargar();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setMiId(data.session?.user.id ?? null));

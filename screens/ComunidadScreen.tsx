@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { OrdenComunidad, useComunidad } from '../hooks/useComunidad';
 import { TarjetaRecetaComunidad } from '../components/comunidad/TarjetaRecetaComunidad';
@@ -44,6 +45,20 @@ export default function ComunidadScreen({
 
   const { recetas, cargando, cargandoMas, refrescando, error, cargarMas, refrescar, reintentar } =
     useComunidad(orden, busqueda);
+
+  // Al regresar al feed (por ejemplo, después de publicar) se actualiza la lista
+  const primeraVez = useRef(true);
+  const refrescarActual = useRef(refrescar);
+  refrescarActual.current = refrescar;
+  useFocusEffect(
+    useCallback(() => {
+      if (primeraVez.current) {
+        primeraVez.current = false;
+        return;
+      }
+      refrescarActual.current();
+    }, [])
+  );
 
   const alHacerScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const pasoLimite = e.nativeEvent.contentOffset.y > 300;

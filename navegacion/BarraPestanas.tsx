@@ -29,7 +29,10 @@ export default function BarraPestanas({ state, descriptors, navigation }: Bottom
     };
   }, []);
 
-  if (tecladoAbierto) return null;
+  const opcionesActivas = descriptors[state.routes[state.index].key].options;
+  const ocultaPorPantalla = (opcionesActivas.tabBarStyle as { display?: string } | undefined)?.display === 'none';
+
+  if (tecladoAbierto || ocultaPorPantalla) return null;
 
   return (
     <View style={[estilos.barra, { paddingBottom: Math.max(insets.bottom, espacioInferior) }]}>
