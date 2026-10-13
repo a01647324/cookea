@@ -51,6 +51,7 @@ export const colors = {
   acentoSuave: 'rgba(175, 168, 87, 0.2)',
   peligroSuave: 'rgba(181, 18, 11, 0.08)',
   peligroBorde: 'rgba(181, 18, 11, 0.35)',
+  velo: 'rgba(38, 22, 13, 0.45)',
 
   // Claves anteriores
   background: paleta.hueso,
@@ -85,12 +86,25 @@ export const fuentes = {
   negrita: 'Quicksand_700Bold',
 } as const;
 
+// Escala un poco más amplia de lo habitual: la app la usan personas con
+// poca experiencia con celulares, en pantallas pequeñas.
 export const espaciado = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
+  xs: 5,
+  sm: 10,
+  md: 18,
+  lg: 28,
+  xl: 36,
+} as const;
+
+// Tamaños de letra. Usen estos en lugar de números sueltos.
+export const tamanos = {
+  mini: 12,
+  chico: 13,
+  base: 14,
+  cuerpo: 15,
+  destacado: 16,
+  grande: 17,
+  enorme: 18,
 } as const;
 
 export const radios = {
@@ -103,41 +117,41 @@ export const radios = {
 export const tipografia = {
   tituloGrande: {
     fontFamily: fuentes.titulo,
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 29,
+    lineHeight: 38,
     color: colors.texto,
   },
   titulo: {
     fontFamily: fuentes.titulo,
-    fontSize: 22,
-    lineHeight: 30,
+    fontSize: 23,
+    lineHeight: 31,
     color: colors.texto,
   },
   subtitulo: {
     fontFamily: fuentes.semibold,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 25,
     letterSpacing: 0.2,
     color: colors.texto,
   },
   cuerpo: {
     fontFamily: fuentes.regular,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 23,
     letterSpacing: 0.2,
     color: colors.texto,
   },
   chico: {
     fontFamily: fuentes.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
     letterSpacing: 0.3,
     color: colors.textoSuave,
   },
   nombreReceta: {
     fontFamily: fuentes.negrita,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 16,
+    lineHeight: 22,
     letterSpacing: 0.8,
     color: colors.texto,
   },

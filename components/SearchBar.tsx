@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, espaciado, fuentes, radios } from '../theme/theme';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
 interface Props {
   valorInicial?: string;
@@ -62,7 +62,7 @@ const estilos = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: fuentes.regular,
-    fontSize: 15,
+    fontSize: tamanos.destacado,
     letterSpacing: 0.2,
     color: colors.texto,
   },

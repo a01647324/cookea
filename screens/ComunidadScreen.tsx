@@ -18,7 +18,7 @@ import { OrdenComunidad, useComunidad } from '../hooks/useComunidad';
 import { TarjetaRecetaComunidad } from '../components/comunidad/TarjetaRecetaComunidad';
 import { SearchBar } from '../components/SearchBar';
 import { VistaCargando, VistaError } from '../components/StateViews';
-import { colors, espaciado, fuentes, radios, sombra, tipografia } from '../theme/theme';
+import { colors, espaciado, fuentes, radios, sombra, tamanos, tipografia } from '../theme/theme';
 
 interface Props {
   onAbrirReceta: (id: number) => void;
@@ -173,7 +173,7 @@ const estilos = StyleSheet.create({
   },
   lista: {
     paddingHorizontal: espaciado.md,
-    paddingBottom: 96,
+    paddingBottom: 104,
   },
   barraSuperior: {
     flexDirection: 'row',
@@ -202,12 +202,12 @@ const estilos = StyleSheet.create({
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.acento,
-    marginTop: 4,
+    marginTop: 5,
     marginBottom: espaciado.sm,
   },
   subtitulo: {
     fontFamily: fuentes.semibold,
-    fontSize: 13,
+    fontSize: tamanos.base,
     letterSpacing: 0.3,
     color: colors.acentoOscuro,
     textAlign: 'center',
@@ -221,14 +221,14 @@ const estilos = StyleSheet.create({
     borderColor: colors.acento,
     borderRadius: radios.pill,
     paddingHorizontal: espaciado.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
   },
   chipActivo: {
     backgroundColor: colors.acento,
   },
   textoChip: {
     fontFamily: fuentes.semibold,
-    fontSize: 13,
+    fontSize: tamanos.base,
     letterSpacing: 0.3,
     color: colors.acentoOscuro,
   },
@@ -238,7 +238,7 @@ const estilos = StyleSheet.create({
   invitacion: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     backgroundColor: colors.primario,
     borderRadius: radios.lg,
     padding: espaciado.md,
@@ -258,13 +258,13 @@ const estilos = StyleSheet.create({
   },
   tituloInvitacion: {
     fontFamily: fuentes.semibold,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: tamanos.destacado,
+    lineHeight: 22,
     color: colors.sobrePrimario,
   },
   subInvitacion: {
     fontFamily: fuentes.regular,
-    fontSize: 12,
+    fontSize: tamanos.chico,
     letterSpacing: 0.3,
     color: colors.neutro,
   },
@@ -274,12 +274,12 @@ const estilos = StyleSheet.create({
     gap: 2,
     backgroundColor: colors.superficieCalida,
     borderRadius: radios.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   textoBotonInvitacion: {
     fontFamily: fuentes.negrita,
-    fontSize: 13,
+    fontSize: tamanos.base,
     color: colors.primario,
   },
   vacio: {
@@ -299,16 +299,16 @@ const estilos = StyleSheet.create({
     bottom: espaciado.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: colors.primario,
     borderRadius: radios.pill,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
     ...sombra,
   },
   textoFlotante: {
     fontFamily: fuentes.negrita,
-    fontSize: 15,
+    fontSize: tamanos.destacado,
     letterSpacing: 0.3,
     color: colors.sobrePrimario,
   },

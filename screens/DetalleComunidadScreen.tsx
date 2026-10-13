@@ -20,7 +20,11 @@ import { useRecetaComunidad } from '../hooks/useRecetaComunidad';
 import { MAX_COMENTARIO, useComentarios } from '../hooks/useComentarios';
 import { useFavoriteToggle } from '../hooks/useFavoriteToggle';
 import { VistaCargando, VistaError } from '../components/StateViews';
-import { colors, espaciado, fuentes, radios, sombra, tipografia } from '../theme/theme';
+import { ModalCalificar } from '../components/comunidad/ModalCalificar';
+import { ModalReportar } from '../components/comunidad/ModalReportar';
+import { MenuHoja, OpcionMenu } from '../components/MenuHoja';
+import { HojaInferior } from '../components/HojaInferior';
+import { colors, espaciado, fuentes, radios, sombra, tipografia, tamanos } from '../theme/theme';
 import { RecetaIngrediente } from '../types/database';
 
 interface Props {
@@ -33,6 +37,7 @@ interface Props {
 }
 
 type Pestana = 'ingredientes' | 'pasos';
+type Hoja = 'menu' | 'calificar' | 'reportar' | 'eliminar' | null;
 
 function textoCantidad(valor: number, unidad: string) {
   const n = Number(valor.toFixed(1));
@@ -58,7 +63,8 @@ export default function DetalleComunidadScreen({
   onAgregarSemana,
   onYaLaPrepare,
 }: Props) {
-  const { receta, extras, cargando, error, recargar, eliminar } = useRecetaComunidad(recetaId);
+  const { receta, extras, cargando, error, recargar, recargarExtras, eliminar } =
+    useRecetaComunidad(recetaId);
   const comentarios = useComentarios(recetaId);
   const { esFavorita, alternar } = useFavoriteToggle(recetaId);
 
@@ -69,18 +75,20 @@ export default function DetalleComunidadScreen({
   const [nuevoComentario, setNuevoComentario] = useState('');
   const [barraCompacta, setBarraCompacta] = useState(false);
   const [miId, setMiId] = useState<string | null>(null);
+  const [hoja, setHoja] = useState<Hoja>(null);
+  const [eliminando, setEliminando] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const yComentarios = useRef(0);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setMiId(data.user?.id ?? null));
+    supabase.auth.getSession().then(({ data }) => setMiId(data.session?.user.id ?? null));
   }, []);
 
   if (cargando) {
     return (
       <SafeAreaView style={estilos.pantalla}>
-        <VistaCargando mensaje="Cargando receta..." />
+        <VistaCargando mensaje="Cargando receta de la comunidad..." />
       </SafeAreaView>
     );
   }
@@ -120,39 +128,60 @@ export default function DetalleComunidadScreen({
     scrollRef.current?.scrollTo({ y: yComentarios.current, animated: true });
   };
 
-  const confirmarEliminar = () => {
-    Alert.alert('¿Eliminar tu receta?', 'Se borrarán también sus calificaciones y comentarios.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          const ok = await eliminar();
-          if (ok) onVolver();
-          else Alert.alert('No pudimos eliminarla', 'Intenta de nuevo.');
-        },
-      },
-    ]);
+  const cerrarHoja = () => setHoja(null);
+  const abrirCalificar = () => setHoja('calificar');
+  const abrirMenu = () => setHoja('menu');
+
+  // Cierra la hoja actual y abre la siguiente cuando terminó de bajar
+  const cambiarHoja = (siguiente: Hoja) => {
+    setHoja(null);
+    setTimeout(() => setHoja(siguiente), 300);
   };
 
-  // Se reemplazan por los modales en el siguiente paso
-  const abrirCalificar = () => Alert.alert('Próximamente', 'Calificar está en construcción.');
-  const abrirReportar = () => Alert.alert('Próximamente', 'Reportar está en construcción.');
+  const alCalificar = () => {
+    recargarExtras();
+    comentarios.recargar();
+  };
 
-  const abrirMenu = () => {
-    if (extras.esMia) {
-      Alert.alert('Tu receta', undefined, [
-        { text: 'Editar', onPress: () => onEditar(recetaId) },
-        { text: 'Eliminar', style: 'destructive', onPress: confirmarEliminar },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
+  const confirmarEliminar = async () => {
+    setEliminando(true);
+    const ok = await eliminar();
+    setEliminando(false);
+    if (ok) {
+      setHoja(null);
+      onVolver();
     } else {
-      Alert.alert('Opciones', undefined, [
-        { text: 'Reportar', style: 'destructive', onPress: abrirReportar },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
+      Alert.alert('No pudimos eliminarla', 'Revisa tu conexión e intenta de nuevo.');
     }
   };
+
+  const opcionesMenu: OpcionMenu[] = extras.esMia
+    ? [
+        {
+          texto: 'Editar receta',
+          icono: 'create-outline',
+          onPress: () => {
+            setHoja(null);
+            onEditar(recetaId);
+          },
+        },
+        {
+          texto: 'Eliminar receta',
+          descripcion: 'Se borrará para todos',
+          icono: 'trash-outline',
+          peligro: true,
+          onPress: () => cambiarHoja('eliminar'),
+        },
+      ]
+    : [
+        {
+          texto: 'Reportar receta',
+          descripcion: 'Avísanos si algo no está bien',
+          icono: 'flag-outline',
+          peligro: true,
+          onPress: () => cambiarHoja('reportar'),
+        },
+      ];
 
   const enviarComentario = async () => {
     const ok = await comentarios.publicar(nuevoComentario);
@@ -517,6 +546,50 @@ export default function DetalleComunidadScreen({
           <Text style={estilos.textoCocinar}>Empezar a cocinar</Text>
         </Pressable>
       </View>
+
+      <ModalCalificar
+        visible={hoja === 'calificar'}
+        recetaId={recetaId}
+        nombre={receta.nombre}
+        autorAlias={extras.autorAlias}
+        fotoUrl={receta.foto_url}
+        onCerrar={cerrarHoja}
+        onEnviada={alCalificar}
+      />
+      <ModalReportar visible={hoja === 'reportar'} recetaId={recetaId} onCerrar={cerrarHoja} />
+      <MenuHoja
+        visible={hoja === 'menu'}
+        titulo={extras.esMia ? 'Tu receta' : 'Opciones'}
+        opciones={opcionesMenu}
+        onCerrar={cerrarHoja}
+      />
+      <HojaInferior visible={hoja === 'eliminar'} onCerrar={cerrarHoja}>
+        <View style={estilos.confirmacion}>
+          <View style={estilos.haloPeligro}>
+            <Ionicons name="trash-outline" size={30} color={colors.peligro} />
+          </View>
+          <Text style={estilos.tituloConfirmacion}>¿Eliminar tu receta?</Text>
+          <Text style={estilos.textoConfirmacion}>
+            Se borrarán también sus calificaciones y comentarios. No se puede deshacer.
+          </Text>
+          <View style={estilos.filaConfirmacion}>
+            <Pressable onPress={cerrarHoja} style={[estilos.botonConfirmacion, estilos.botonCancelar]}>
+              <Text style={estilos.textoCancelar}>Cancelar</Text>
+            </Pressable>
+            <Pressable
+              onPress={confirmarEliminar}
+              disabled={eliminando}
+              style={[estilos.botonConfirmacion, estilos.botonEliminar]}
+            >
+              {eliminando ? (
+                <ActivityIndicator color={colors.sobreAcento} />
+              ) : (
+                <Text style={estilos.textoEliminar}>Eliminar</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </HojaInferior>
     </SafeAreaView>
   );
 }
@@ -534,16 +607,16 @@ const estilos = StyleSheet.create({
     zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 17,
     paddingHorizontal: espaciado.md,
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: colors.superficie,
     ...sombra,
   },
   tituloCompacto: {
     flex: 1,
     fontFamily: fuentes.titulo,
-    fontSize: 16,
+    fontSize: tamanos.grande,
     color: colors.primario,
   },
   foto: {
@@ -573,9 +646,9 @@ const estilos = StyleSheet.create({
     borderTopRightRadius: 26,
     marginTop: -26,
     paddingHorizontal: espaciado.md,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: espaciado.lg,
-    gap: 14,
+    gap: 17,
   },
   asa: {
     width: 40,
@@ -586,8 +659,8 @@ const estilos = StyleSheet.create({
   },
   nombre: {
     ...tipografia.tituloGrande,
-    fontSize: 26,
-    lineHeight: 33,
+    fontSize: 27,
+    lineHeight: 35,
     color: colors.primario,
     textAlign: 'center',
   },
@@ -595,7 +668,7 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
     marginTop: -4,
   },
   avatar: {
@@ -608,59 +681,59 @@ const estilos = StyleSheet.create({
   },
   iniciales: {
     fontFamily: fuentes.negrita,
-    fontSize: 11,
+    fontSize: tamanos.mini,
     letterSpacing: 0.5,
     color: colors.sobreAcento,
   },
   alias: {
     fontFamily: fuentes.semibold,
-    fontSize: 14,
+    fontSize: tamanos.cuerpo,
     color: colors.texto,
   },
   filaCalificacion: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   promedio: {
     fontFamily: fuentes.negrita,
-    fontSize: 14,
+    fontSize: tamanos.cuerpo,
     color: colors.texto,
   },
   filaChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     borderRadius: radios.pill,
-    paddingHorizontal: 11,
-    paddingVertical: 4,
+    paddingHorizontal: 13,
+    paddingVertical: 5,
   },
   textoChip: {
     fontFamily: fuentes.semibold,
-    fontSize: 12,
+    fontSize: tamanos.chico,
     letterSpacing: 0.3,
   },
   avisoAlergia: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     backgroundColor: colors.peligroSuave,
     borderWidth: 1,
     borderColor: colors.peligroBorde,
     borderRadius: radios.md,
-    padding: 12,
+    padding: 14,
   },
   textoAlergia: {
     flex: 1,
     fontFamily: fuentes.semibold,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: tamanos.base,
+    lineHeight: 21,
     color: colors.peligro,
   },
   filaDatos: {
@@ -673,7 +746,7 @@ const estilos = StyleSheet.create({
     gap: 2,
     backgroundColor: colors.superficie,
     borderRadius: radios.md,
-    paddingVertical: 12,
+    paddingVertical: 14,
     ...sombra,
   },
   iconoDato: {
@@ -687,15 +760,15 @@ const estilos = StyleSheet.create({
   },
   valorDato: {
     fontFamily: fuentes.negrita,
-    fontSize: 15,
+    fontSize: tamanos.destacado,
     color: colors.texto,
   },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     height: 32,
-    marginBottom: 4,
+    marginBottom: 5,
   },
   botonMenos: {
     width: 26,
@@ -716,43 +789,43 @@ const estilos = StyleSheet.create({
   },
   valorPorciones: {
     fontFamily: fuentes.negrita,
-    fontSize: 17,
+    fontSize: tamanos.enorme,
     color: colors.texto,
     minWidth: 18,
     textAlign: 'center',
   },
   enlace: {
     fontFamily: fuentes.negrita,
-    fontSize: 13,
+    fontSize: tamanos.base,
     color: colors.acentoOscuro,
-    marginTop: 4,
+    marginTop: 5,
   },
   botonVideo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
     borderWidth: 1.5,
     borderColor: colors.primario,
     borderRadius: radios.pill,
-    paddingVertical: 11,
+    paddingVertical: 13,
   },
   textoBotonVideo: {
     fontFamily: fuentes.negrita,
-    fontSize: 14,
+    fontSize: tamanos.cuerpo,
     color: colors.primario,
   },
   pestanas: {
     flexDirection: 'row',
     backgroundColor: colors.fondoHundido,
     borderRadius: radios.pill,
-    padding: 4,
-    marginTop: 4,
+    padding: 5,
+    marginTop: 5,
   },
   pestana: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 9,
+    paddingVertical: 11,
     borderRadius: radios.pill,
   },
   pestanaActiva: {
@@ -760,7 +833,7 @@ const estilos = StyleSheet.create({
   },
   textoPestana: {
     fontFamily: fuentes.semibold,
-    fontSize: 14,
+    fontSize: tamanos.cuerpo,
     color: colors.textoSuave,
   },
   textoPestanaActiva: {
@@ -778,8 +851,8 @@ const estilos = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.fondoHundido,
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 7,
+    marginBottom: 5,
     overflow: 'hidden',
   },
   barraProgreso: {
@@ -793,13 +866,13 @@ const estilos = StyleSheet.create({
   filaIngrediente: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     backgroundColor: colors.superficie,
     borderRadius: radios.md,
     borderWidth: 1,
     borderColor: 'transparent',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   filaFalta: {
     borderColor: colors.peligroBorde,
@@ -823,15 +896,15 @@ const estilos = StyleSheet.create({
   nombreIngrediente: {
     flex: 1,
     fontFamily: fuentes.semibold,
-    fontSize: 15,
+    fontSize: tamanos.destacado,
     color: colors.texto,
   },
   paso: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
     backgroundColor: colors.superficie,
     borderRadius: radios.md,
-    padding: 14,
+    padding: 17,
   },
   numeroPaso: {
     width: 30,
@@ -843,7 +916,7 @@ const estilos = StyleSheet.create({
   },
   textoNumeroPaso: {
     fontFamily: fuentes.negrita,
-    fontSize: 13,
+    fontSize: tamanos.base,
     color: colors.sobrePrimario,
   },
   chipTiempo: {
@@ -852,46 +925,46 @@ const estilos = StyleSheet.create({
     marginTop: espaciado.sm,
   },
   seccionComentarios: {
-    gap: 12,
+    gap: 14,
     marginTop: espaciado.md,
   },
   tituloSeccion: {
     ...tipografia.titulo,
-    fontSize: 19,
+    fontSize: 20,
     color: colors.primario,
   },
   botonCalificar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: colors.primario,
     borderRadius: radios.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   textoCalificar: {
     fontFamily: fuentes.negrita,
-    fontSize: 12,
+    fontSize: tamanos.chico,
     color: colors.sobrePrimario,
   },
   sinComentarios: {
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
     paddingVertical: espaciado.md,
   },
   comentario: {
     backgroundColor: colors.superficie,
     borderRadius: radios.md,
-    padding: 12,
-    gap: 4,
+    padding: 14,
+    gap: 5,
   },
   cabeceraComentario: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   textoComentario: {
-    marginLeft: 36,
+    marginLeft: 43,
   },
   textoError: {
     ...tipografia.chico,
@@ -907,13 +980,13 @@ const estilos = StyleSheet.create({
     borderColor: colors.borde,
     borderRadius: 24,
     paddingLeft: espaciado.md,
-    paddingRight: 6,
-    paddingVertical: 6,
+    paddingRight: 7,
+    paddingVertical: 7,
   },
   inputComentario: {
     flex: 1,
     fontFamily: fuentes.regular,
-    fontSize: 14,
+    fontSize: tamanos.cuerpo,
     color: colors.texto,
     maxHeight: 100,
   },
@@ -929,7 +1002,7 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     gap: espaciado.sm,
     paddingHorizontal: espaciado.md,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: colors.superficie,
     shadowColor: colors.texto,
     shadowOffset: { width: 0, height: -2 },
@@ -951,14 +1024,68 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     backgroundColor: colors.primario,
     borderRadius: radios.pill,
   },
   textoCocinar: {
     fontFamily: fuentes.negrita,
-    fontSize: 15,
+    fontSize: tamanos.destacado,
     letterSpacing: 0.3,
     color: colors.sobrePrimario,
+  },
+  confirmacion: {
+    alignItems: 'center',
+    gap: espaciado.sm,
+  },
+  haloPeligro: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.peligroSuave,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: espaciado.xs,
+  },
+  tituloConfirmacion: {
+    ...tipografia.titulo,
+    fontSize: 22,
+    color: colors.primario,
+    textAlign: 'center',
+  },
+  textoConfirmacion: {
+    ...tipografia.cuerpo,
+    color: colors.textoSuave,
+    textAlign: 'center',
+    marginBottom: espaciado.sm,
+  },
+  filaConfirmacion: {
+    flexDirection: 'row',
+    gap: espaciado.sm,
+    alignSelf: 'stretch',
+  },
+  botonConfirmacion: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    borderRadius: radios.pill,
+  },
+  botonCancelar: {
+    borderWidth: 1.5,
+    borderColor: colors.primario,
+  },
+  botonEliminar: {
+    backgroundColor: colors.peligro,
+  },
+  textoCancelar: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.primario,
+  },
+  textoEliminar: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.sobreAcento,
   },
 });
