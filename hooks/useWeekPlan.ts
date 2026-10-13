@@ -117,7 +117,11 @@ export function useWeekPlan() {
   }, []);
 
   useEffect(() => {
-    cargar();
+    const ejecutarCarga = async () => {
+      await cargar();
+    };
+  
+    void ejecutarCarga();
   }, [cargar]);
 
   return {

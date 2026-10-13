@@ -161,8 +161,13 @@ export function useWeeklyPlanner(
 
 
   useEffect(() => {
-    cargar();
+    const ejecutarCarga = async () => {
+      await cargar();
+    };
+  
+    void ejecutarCarga();
   }, [cargar]);
+  
 
 
   // Agregar o reemplazar receta
