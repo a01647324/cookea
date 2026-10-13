@@ -76,7 +76,6 @@ export interface PlanSemanalItem {
   receta_id: number;
   recetas: RecetaResumen;
 }
-
 export interface RecetaComunidad extends RecetaResumen {
   creado_en: string;
   autor_alias: string;
@@ -91,4 +90,29 @@ export interface Comentario {
   creado_en: string;
   usuario_id: string;
   alias: string;
+}
+
+export type TipoAlbum =
+  | 'favoritos'
+  | 'hacer_despues'
+  | 'ya_preparadas'
+  | 'personalizado';
+
+export interface Album {
+  id: number;
+  usuario_id: string;
+  nombre: string;
+  tipo: TipoAlbum;
+  creado_en: string;
+}
+
+export interface AlbumConConteo extends Album {
+  cantidad_recetas: number;
+}
+
+export interface AlbumReceta {
+  album_id: number;
+  receta_id: number;
+  agregado_en: string;
+  recetas: RecetaResumen;
 }

@@ -5,6 +5,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useRecipeDetail } from '../hooks/useRecipeDetail';
 import { useFavoriteToggle } from '../hooks/useFavoriteToggle';
 import { VistaCargando, VistaError } from '../components/StateViews';
+import { BotonYaLoPrepare } from '../components/receta/botonYaLoPrepare';
+import { ModalYaLoPrepare } from '../components/receta/modalYaLoPrepare';
 import { colors, espaciado, radios, tipografia } from '../theme/theme';
 
 /**
@@ -27,7 +29,7 @@ export function RecipeDetailScreen() {
   // Usamos las porciones originales hasta que el usuario cambie el valor
   const porcionesBase = receta?.porciones_base ?? 1;
   const porcionesActuales = porciones ?? porcionesBase;
-
+  const [modalPreparada, setModalPreparada] = useState(false);
   // Calcula la cantidad proporcional de cada ingrediente
   function ajustarCantidad(cantidad: number) {
     const resultado = cantidad * (porcionesActuales / porcionesBase);
@@ -106,7 +108,9 @@ export function RecipeDetailScreen() {
             <Text style={estilos.textoBotonCocinar}>
               EMPEZAR A COCINAR
             </Text>
+            
           </Pressable>
+          <BotonYaLoPrepare onPress={() => setModalPreparada(true)} />
 
           {/* Recordatorio de seguridad (sección 3.4 del manual): aunque el
               filtro de alergias ya excluyó esta receta si aplicaba, seguimos
@@ -148,6 +152,8 @@ export function RecipeDetailScreen() {
             ))}
         </View>
       </ScrollView>
+      <ModalYaLoPrepare visible={modalPreparada} onCerrar={() => setModalPreparada(false)}
+     receta={receta} porciones={porcionesActuales} />
     </SafeAreaView>
   );
 }

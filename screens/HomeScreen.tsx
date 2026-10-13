@@ -91,9 +91,9 @@ export function HomeScreen() {
       titulo: 'Favoritos',
       subtitulo: 'Mira tus recetas favoritas',
       color: coloresTarjetaReceta[2],
-  
+    
       icono: require('../assets/images/icons/heart.png'),
-  
+    
       onPress: () =>
         Alert.alert(
           'Próximamente',
