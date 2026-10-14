@@ -198,23 +198,31 @@ import {
   
   
         const {
-          error: errorInsertar,
-        } = await supabase
-          .from('albumes')
-          .insert({
-            usuario_id: usuario.id,
-            nombre: nombreLimpio,
-            tipo: 'propio',
-          });
-  
-        if (errorInsertar) {
-          throw errorInsertar;
-        }
-  
-  
-        await cargar();
-  
-        return true;
+            data: albumCreado,
+            error: errorInsertar,
+          } = await supabase
+            .from('albumes')
+            .insert({
+              usuario_id: usuario.id,
+              nombre: nombreLimpio,
+              tipo: 'propio',
+            })
+            .select(`
+              id,
+              usuario_id,
+              nombre,
+              tipo,
+              creado_en
+            `)
+            .single();
+          
+          if (errorInsertar) {
+            throw errorInsertar;
+          }
+          
+          await cargar();
+          
+          return albumCreado;
   
       } catch (e: any) {
   
@@ -223,7 +231,7 @@ import {
           'No se pudo crear la colección.'
         );
   
-        return false;
+        return null;
       }
     }
 
