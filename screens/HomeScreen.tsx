@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View, Alert, Image, } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View, Image, } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, } from '@react-navigation/native';
 import { useUserProfile } from '../hooks/useUserProfile';
