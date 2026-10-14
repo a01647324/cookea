@@ -1,32 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from './Icono';
 import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
 interface Props {
   valorInicial?: string;
   placeholder?: string;
-  onBuscar: (texto: string) => void; 
-  onFiltro?: () => void; 
+  onBuscar: (texto: string) => void;
+  onFiltro?: () => void;
+  buscarAlEscribir?: boolean;
 }
 
-
-export function SearchBar({ valorInicial = '', placeholder = 'Busca una receta', onBuscar, onFiltro }: Props) {
+export function SearchBar({
+  valorInicial = '',
+  placeholder = 'Busca una receta',
+  onBuscar,
+  onFiltro,
+  buscarAlEscribir = true,
+}: Props) {
   const [texto, setTexto] = useState(valorInicial);
   const referenciaTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!buscarAlEscribir) return;
     if (referenciaTimeout.current) clearTimeout(referenciaTimeout.current);
     referenciaTimeout.current = setTimeout(() => onBuscar(texto), 400);
     return () => {
       if (referenciaTimeout.current) clearTimeout(referenciaTimeout.current);
     };
-    // Solo re-ejecutar cuando cambia el texto, no cuando cambia la función onBuscar
+    // Solo cuando cambia el texto, no cuando cambia onBuscar
   }, [texto]);
 
   return (
     <View style={estilos.contenedor}>
-      <Ionicons name="search" size={18} color={colors.textoSuave} />
+      <Icono nombre="magnifer-linear" size={20} color={colors.textoSuave} />
       <TextInput
         value={texto}
         onChangeText={setTexto}
@@ -40,7 +47,7 @@ export function SearchBar({ valorInicial = '', placeholder = 'Busca una receta',
       />
       {onFiltro && (
         <Pressable onPress={onFiltro} hitSlop={10} style={estilos.botonFiltro}>
-          <Ionicons name="options-outline" size={20} color={colors.primario} />
+          <Icono nombre="tuning-2-linear" size={22} color={colors.primario} />
         </Pressable>
       )}
     </View>
@@ -57,7 +64,7 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borde,
     paddingHorizontal: espaciado.md,
-    height: 48,
+    height: 50,
   },
   input: {
     flex: 1,

@@ -2,17 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Icono, { NombreIcono } from '../components/Icono';
 import { colors, fuentes, tamanos } from '../theme/theme';
 
-type NombreIcono = keyof typeof Ionicons.glyphMap;
-
-const ICONOS: Record<string, [NombreIcono, NombreIcono]> = {
-  Recetas: ['book', 'book-outline'],
-  Alacena: ['file-tray-full', 'file-tray-full-outline'],
-  Inicio: ['home', 'home-outline'],
-  Comunidad: ['people', 'people-outline'],
-  Cuenta: ['person-circle', 'person-circle-outline'],
+const ICONOS: Record<string, NombreIcono> = {
+  Recetas: 'notebook-linear',
+  Alacena: 'box-linear',
+  Inicio: 'home-2-linear',
+  Comunidad: 'users-group-rounded-linear',
+  Cuenta: 'user-circle-linear',
 };
 
 export default function BarraPestanas({ state, descriptors, navigation }: BottomTabBarProps) {
@@ -39,9 +37,8 @@ export default function BarraPestanas({ state, descriptors, navigation }: Bottom
       {state.routes.map((ruta, indice) => {
         const enfocada = state.index === indice;
         const { options } = descriptors[ruta.key];
-        const etiqueta =
-          typeof options.tabBarLabel === 'string' ? options.tabBarLabel : ruta.name;
-        const [iconoActivo, iconoInactivo] = ICONOS[ruta.name] ?? ['ellipse', 'ellipse-outline'];
+        const etiqueta = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : ruta.name;
+        const icono = ICONOS[ruta.name] ?? 'home-2-linear';
 
         const alPresionar = () => {
           const evento = navigation.emit({
@@ -66,12 +63,12 @@ export default function BarraPestanas({ state, descriptors, navigation }: Bottom
             {enfocada ? (
               <View style={estilos.activa}>
                 <View style={estilos.circulo}>
-                  <Ionicons name={iconoActivo} size={28} color={colors.acento} />
+                  <Icono nombre={icono} size={28} color={colors.acentoOscuro} />
                 </View>
                 <Text style={estilos.etiqueta}>{etiqueta}</Text>
               </View>
             ) : (
-              <Ionicons name={iconoInactivo} size={27} color={colors.textoTenue} />
+              <Icono nombre={icono} size={27} color={colors.textoTenue} />
             )}
           </Pressable>
         );
