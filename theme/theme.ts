@@ -6,19 +6,33 @@
  */
 
 const paleta = {
-  crema: '#F0EAD8',
-  hinojo: '#AFA857',
-  musgo: '#484B30',
-  limon: '#F0BD6C',
-  chile: '#B5120B',
-  cedro: '#6F4128',
-  arena: '#BFA885',
-  caramelo: '#D99B66',
-  espresso: '#26160D',
-  cafe: '#593622',
+  // Paleta principal
+  salmon: '#E07970',
+  melon: '#DE8948',
+  limon: '#F9D58D',
+  pistache: '#BBAB47',
+  cielo: '#CDD7D8',
+  olivo: '#809047',
+
+  // Tonos oscuros sacados de la misma paleta (para texto legible)
+  tinta: '#263133',
+  tintaSuave: '#4F5F61',
+  tintaTenue: '#8E9B9D',
+  pistacheOscuro: '#6E6526',
+  melonOscuro: '#9A5A24',
+  salmonOscuro: '#A24B42',
+  melonIntenso: '#D0742F',
+  pistacheIntenso: '#9A8F2E',
+  salmonIntenso: '#D2584E',
+  cieloIntenso: '#5E7F86',
+
+  // Base clara
   hueso: '#F2EEEB',
-  gris: '#BFBAB8',
   blanco: '#FFFFFF',
+  crema: '#F0EAD8',
+  grisClaro: '#E2DCD6',
+  hundido: '#E6E0DA',
+  chile: '#B5120B',
 };
 
 export const colors = {
@@ -26,54 +40,68 @@ export const colors = {
   superficie: paleta.blanco,
   superficieCalida: paleta.crema,
 
-  primario: paleta.cafe,
-  sobrePrimario: paleta.crema,
+  primario: paleta.tinta,
+  sobrePrimario: paleta.blanco,
 
-  acento: paleta.hinojo,
-  acentoOscuro: paleta.musgo,
-  sobreAcento: paleta.blanco,
+  acento: paleta.pistache,
+  acentoOscuro: paleta.pistacheOscuro,
+  sobreAcento: paleta.tinta,
 
-  texto: paleta.espresso,
-  textoSuave: paleta.cedro,
-  textoTenue: paleta.gris,
+  texto: paleta.tinta,
+  textoSuave: paleta.tintaSuave,
+  textoTenue: paleta.tintaTenue,
 
-  calificacion: paleta.limon,
-  calido: paleta.caramelo,
-  neutro: paleta.arena,
-  borde: '#E2DCD6',
+  calido: paleta.melon,
+  calidoOscuro: paleta.melonOscuro,
+  destacado: paleta.salmon,
+  destacadoOscuro: paleta.salmonOscuro,
+  calidoIntenso: paleta.melonIntenso,
+  acentoIntenso: paleta.pistacheIntenso,
+  destacadoIntenso: paleta.salmonIntenso,
+  serenoIntenso: paleta.cieloIntenso,
+  resaltado: paleta.limon,
+  sereno: paleta.cielo,
+  encabezado: paleta.olivo,
+  sobreEncabezado: paleta.blanco,
+  calificacion: paleta.melon,
+  neutro: paleta.cielo,
+  borde: paleta.grisClaro,
   peligro: paleta.chile,
-  fondoHundido: '#E6E0DA',
+  fondoHundido: paleta.hundido,
 
-  // Versiones translúcidas para etiquetas y avisos
-  vidrio: 'rgba(38, 22, 13, 0.55)',
+  // Versiones translúcidas para etiquetas, avisos y fondos de íconos
+  vidrio: 'rgba(38, 49, 51, 0.55)',
   vidrioBorde: 'rgba(255, 255, 255, 0.35)',
-  calidoSuave: 'rgba(217, 155, 102, 0.18)',
-  acentoSuave: 'rgba(175, 168, 87, 0.2)',
+  calidoSuave: 'rgba(222, 137, 72, 0.18)',
+  destacadoSuave: 'rgba(224, 121, 112, 0.18)',
+  resaltadoSuave: 'rgba(249, 213, 141, 0.35)',
+  acentoSuave: 'rgba(187, 171, 71, 0.22)',
+  serenoSuave: 'rgba(205, 215, 216, 0.6)',
   peligroSuave: 'rgba(181, 18, 11, 0.08)',
   peligroBorde: 'rgba(181, 18, 11, 0.35)',
-  velo: 'rgba(38, 22, 13, 0.45)',
+  velo: 'rgba(38, 49, 51, 0.45)',
 
   // Claves anteriores
   background: paleta.hueso,
   surface: paleta.blanco,
   surfaceMuted: paleta.crema,
-  oliva: paleta.hinojo,
-  olivaOscuro: paleta.musgo,
-  terracota: paleta.caramelo,
+  oliva: paleta.pistache,
+  olivaOscuro: paleta.pistacheOscuro,
+  terracota: paleta.melon,
   mostaza: paleta.limon,
-  vino: paleta.cafe,
-  textoPrincipal: paleta.espresso,
-  textoSecundario: paleta.cedro,
+  vino: paleta.salmonOscuro,
+  textoPrincipal: paleta.tinta,
+  textoSecundario: paleta.tintaSuave,
   textoSobreColor: paleta.blanco,
   textoSobreColorSecundario: 'rgba(255,255,255,0.75)',
-  exito: paleta.musgo,
+  exito: paleta.pistacheOscuro,
   error: paleta.chile,
-  advertencia: paleta.caramelo,
-  overlayCard: 'rgba(72, 75, 48, 0.55)',
+  advertencia: paleta.melon,
+  overlayCard: 'rgba(38, 49, 51, 0.55)',
   overlayCardBorde: 'rgba(255, 255, 255, 0.25)',
   inputFondo: 'rgba(255, 255, 255, 0.12)',
   inputBorde: 'rgba(255, 255, 255, 0.45)',
-  botonPrincipal: paleta.cafe,
+  botonPrincipal: paleta.tinta,
   tarjetaClara: paleta.crema,
 } as const;
 
@@ -158,11 +186,11 @@ export const tipografia = {
 };
 
 export const sombra = {
-  shadowColor: paleta.espresso,
+  shadowColor: paleta.tinta,
   shadowOffset: { width: 0, height: 2 },
   shadowOpacity: 0.08,
   shadowRadius: 8,
   elevation: 3,
 };
 
-export const coloresTarjetaReceta = [colors.calido, colors.acento, colors.neutro];
+export const coloresTarjetaReceta = [colors.calido, colors.acento, colors.destacado];

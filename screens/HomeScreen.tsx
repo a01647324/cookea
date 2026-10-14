@@ -1,51 +1,35 @@
-import React from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View, Image, } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect, } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useWeekPlan } from '../hooks/useWeekPlan';
-import { useRecomendaciones } from '../hooks/useRecomendaciones'; 
+import { useRecomendaciones } from '../hooks/useRecomendaciones';
+import { useComunidad } from '../hooks/useComunidad';
 import { SearchBar } from '../components/SearchBar';
-import { WeekPlanSection } from '../components/WeekPlanSection';
-import { QuickAccessGrid } from '../components/QuickAccessGrid';
-import { TipBanner } from '../components/TipBanner';
-import { TarjetaRecomendada } from '../components/recomendador/tarjetaRecomendada'; 
-import { BotonQueCocino } from '../components/recomendador/botonQueCocino'; 
-import { VistaCargando, VistaError } from '../components/StateViews';
-import { colors, coloresTarjetaReceta, espaciado, tipografia } from '../theme/theme';
-import TarjetaPersonaliza from '../perfil/TarjetaPersonaliza'; // PERFIL:
+import { EncabezadoSeccion } from '../components/EncabezadoSeccion';
+import { Esqueleto } from '../components/Esqueleto';
+import { VistaError } from '../components/StateViews';
+import Icono from '../components/Icono';
+import { TarjetaHoy } from '../components/inicio/TarjetaHoy';
+import { Acceso, AccesosRapidos } from '../components/inicio/AccesosRapidos';
+import { TipDelDia } from '../components/inicio/TipDelDia';
+import { TarjetaComunidadMini } from '../components/inicio/TarjetaComunidadMini';
+import { TarjetaRecomendada } from '../components/recomendador/tarjetaRecomendada';
+import TarjetaPersonaliza from '../perfil/TarjetaPersonaliza';
+import { colors, coloresTarjetaReceta, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
-/**
- * HomeScreen
- *
- *Combina cuatro hooks, cada uno responsable de un pedazo de datos:
- *   - useUserProfile     -> alias para el saludo
- *   - useWeekPlan        -> tarjetas de "Tu semana"
- *   - useFeaturedRecipes -> carrusel de abajo
- *  todavía le flatan pantallas porque no las hemos ehcho jiji ;) :)
- */
+function iniciales(alias?: string | null) {
+  if (!alias) return '';
+  return alias.trim().slice(0, 2).toUpperCase();
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
-  // PERFIL: recargarPerfil para que el saludo muestre el alias nuevo
-  // después de editarlo en Cuenta
   const { perfil, recargar: recargarPerfil } = useUserProfile();
-  const {
-    dias,
-    cargando: cargandoPlan,
-    error: errorPlan,
-    recargar: recargarPlan
-  } = useWeekPlan();
-  
-  useFocusEffect(
-    React.useCallback(() => {
-  
-      recargarPlan();
-      recargarPerfil(); // PERFIL: para que el saludo muestre el alias nuevo
-
-    }, [recargarPlan, recargarPerfil])
-  );
-  
+  const { dias, cargando: cargandoPlan, error: errorPlan, recargar: recargarPlan } = useWeekPlan();
   const {
     items: destacadas,
     alacenaVacia,
@@ -53,176 +37,178 @@ export function HomeScreen() {
     error: errorDestacadas,
     recargar: recargarDestacadas,
   } = useRecomendaciones(6, true);
-  
-  const [refrescando, setRefrescando] = React.useState(false);
+  const { recetas: deComunidad, refrescar: refrescarComunidad } = useComunidad('recientes', '');
+
+  const [refrescando, setRefrescando] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      recargarPlan();
+      recargarPerfil();
+    }, [recargarPlan, recargarPerfil])
+  );
 
   async function alJalarParaRefrescar() {
     setRefrescando(true);
-    await Promise.all([
-      recargarPlan(),
-      recargarDestacadas(),
-      recargarPerfil(),
-    ]);
-    setRefrescando(false);
+    try {
+      await Promise.all([
+        recargarPlan(),
+        recargarDestacadas(),
+        recargarPerfil(),
+        Promise.resolve(refrescarComunidad()),
+      ]);
+    } finally {
+      setRefrescando(false);
+    }
   }
 
-  const accesos = [
+  const irASemana = (fecha?: string) =>
+    navigation.navigate('TuSemana', fecha ? { fechaInicial: fecha } : undefined);
+
+  const abrirComunidad = (recetaId?: number) =>
+    recetaId
+      ? navigation.navigate('Comunidad', { screen: 'DetalleComunidad', params: { recetaId }, initial: false })
+      : navigation.navigate('Comunidad', { screen: 'ComunidadFeed' });
+
+  const accesos: Acceso[] = [
     {
       clave: 'recetas',
       titulo: 'Recetas',
-      subtitulo: 'Busca recetas',
-      color: coloresTarjetaReceta[0],
-  
-      icono: require('../assets/images/icons/recipe-book.png'),
-  
+      icono: 'notebook-linear',
+      fondo: colors.calidoSuave,
+      color: colors.calidoIntenso,
       onPress: () => navigation.navigate('Recetario'),
     },
-  
     {
       clave: 'alacena',
       titulo: 'Alacena',
-      subtitulo: 'Observa lo que tienes',
-      color: coloresTarjetaReceta[1],
-  
-      icono: require('../assets/images/icons/cupboard.png'),
-  
+      icono: 'box-linear',
+      fondo: colors.acentoSuave,
+      color: colors.acentoIntenso,
       onPress: () => navigation.navigate('Alacena'),
     },
-  
     {
       clave: 'favoritos',
       titulo: 'Favoritos',
-      subtitulo: 'Mira tus recetas favoritas',
-      color: coloresTarjetaReceta[2],
-    
-      icono: require('../assets/images/icons/heart.png'),
-    
+      icono: 'heart-linear',
+      fondo: colors.destacadoSuave,
+      color: colors.destacadoIntenso,
       onPress: () => navigation.navigate('Favoritos'),
     },
-  
     {
       clave: 'comunidad',
       titulo: 'Comunidad',
-      subtitulo: 'Comparte tus recetas',
-      color: colors.olivaOscuro,
-      icono: require('../assets/images/icons/group.png'),
-      onPress: () => navigation.navigate('Comunidad'),
-    },
-  
-    {
-      clave: 'alergias',
-      titulo: 'Alergias',
-      subtitulo: 'Configura tus alergias',
-      color: colors.olivaOscuro,
-  
-      icono: require('../assets/images/icons/allergy.png'),
-  
-      onPress: () => navigation.navigate('Alergias'),
+      icono: 'users-group-rounded-linear',
+      fondo: colors.serenoSuave,
+      color: colors.serenoIntenso,
+      onPress: () => abrirComunidad(),
     },
   ];
 
   return (
-    <SafeAreaView style={estilos.pantalla} edges={['top']}>
+    <View style={estilos.pantalla}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={estilos.contenidoScroll}
+        contentContainerStyle={estilos.contenido}
         refreshControl={
           <RefreshControl
             refreshing={refrescando}
             onRefresh={alJalarParaRefrescar}
+            tintColor={colors.primario}
+            colors={[colors.primario]}
+            progressViewOffset={insets.top}
           />
         }
       >
-        <View style={estilos.header}>
-        <Image 
-          source={require('../assets/images/cookea-logo.png')}
-          style={estilos.logo}
-          resizeMode="contain"/>
-        </View>
+        <View style={[estilos.bloque, { paddingTop: insets.top + espaciado.sm }]}>
+          <View style={estilos.filaSuperior}>
+            <View style={estilos.lado} />
+            <Image source={require('../assets/images/cookea-logo.png')} style={estilos.logo} resizeMode="contain" />
+            <View style={[estilos.lado, estilos.ladoDerecho]}>
+              <Pressable
+                onPress={() => navigation.navigate('Cuenta')}
+                style={estilos.avatar}
+                accessibilityRole="button"
+                accessibilityLabel="Ir a mi perfil"
+              >
+                {perfil ? (
+                  <Text style={estilos.textoAvatar}>{iniciales(perfil.alias)}</Text>
+                ) : (
+                  <Icono nombre="user-circle-linear" size={22} color={colors.primario} />
+                )}
+              </Pressable>
+            </View>
+          </View>
 
-        <View style={estilos.buscadorContenedor}>
+          <Text style={estilos.saludo}>{perfil ? `Hola, ${perfil.alias}` : 'Hola'}</Text>
+          <Text style={estilos.titulo}>¿Qué cocinamos hoy?</Text>
+
           <SearchBar
-            placeholder="Buscar"
+            placeholder="Buscar recetas"
+            buscarAlEscribir={false}
             onBuscar={(texto) => {
               if (texto.trim().length > 0) {
-                navigation.navigate('Recetario', { busquedaInicial: texto });
+                navigation.navigate('Recetario', { busquedaInicial: texto.trim() });
               }
             }}
           />
         </View>
 
-        <View style={estilos.saludoContenedor}>
-          <Text style={tipografia.titulo}>
-            {/* PERFIL: sin nombre solo cuando todavía no hay perfil; al
-                recargar se sigue viendo el alias, así el saludo no parpadea */}
-            {perfil === null ? '¡Bienvenid@!' : `¡Bienvenid@, ${perfil.alias}!`}
-          </Text>
+        <View style={estilos.montada}>
+          <TarjetaHoy
+            dias={dias}
+            cargando={cargandoPlan}
+            error={errorPlan}
+            onReintentar={recargarPlan}
+            onAbrirReceta={(id) => navigation.navigate('RecetaDetalle', { recetaId: id })}
+            onCocinar={(id) => navigation.navigate('ModoCocina', { recetaId: id })}
+            onPlanear={irASemana}
+          />
         </View>
 
-        {/* PERFIL: invitación a Personaliza; se esconde sola cuando ya la
-            contestó o tocó "Ahora no" */}
+        <Pressable onPress={() => irASemana()} hitSlop={8} style={estilos.verSemana}>
+          <Text style={estilos.textoVerSemana}>Ver mi semana</Text>
+          <Icono nombre="alt-arrow-right-linear" size={16} color={colors.acentoOscuro} />
+        </Pressable>
+
         <TarjetaPersonaliza />
 
-        {cargandoPlan ? (
-          <VistaCargando mensaje="Cargando tu semana..." />
-        ) : errorPlan ? (
-          <VistaError mensaje={errorPlan} onReintentar={recargarPlan} />
-        ) : (
-          <WeekPlanSection
-            dias={dias}
-            onVerSemana={() =>
-              navigation.navigate(
-                'TuSemana'
-              )
-            }
-            onAgregar={(fecha) =>
-              navigation.navigate(
-                'TuSemana',
-                {
-                  fechaInicial: fecha,
-                }
-              )
-            }
-          />
-        )}
-
-        <View style={{ marginTop: espaciado.lg }}>
-          <QuickAccessGrid accesos={accesos} />
+        <View style={estilos.seccion}>
+          <AccesosRapidos accesos={accesos} />
         </View>
 
-        <TipBanner />
+        <View style={estilos.seccion}>
+          <TipDelDia />
+        </View>
 
-        <View style={estilos.seccionDestacadas}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Text style={tipografia.subtitulo}>Recomendadas para ti</Text>
-            <BotonQueCocino variante="enlace" onPress={() => navigation.navigate('QueCocino')} />
-          </View>
+        <View style={estilos.seccion}>
+          <EncabezadoSeccion
+            titulo="Recomendadas para ti"
+            accion="¿Qué cocino hoy?"
+            onAccion={() => navigation.navigate('QueCocino')}
+          />
           {alacenaVacia && !cargandoDestacadas && !errorDestacadas && (
-            <Text style={[tipografia.chico, { marginTop: espaciado.xs }]}>
+            <Text style={estilos.aviso}>
               Agrega ingredientes a tu alacena para recomendaciones a tu medida.
             </Text>
           )}
 
-          {cargandoDestacadas ? (
-            <VistaCargando />
-          ) : errorDestacadas ? (
-            <VistaError mensaje={errorDestacadas} onReintentar={recargarDestacadas} />
+          {cargandoDestacadas && destacadas.length === 0 ? (
+            <View style={estilos.carrusel}>
+              <Esqueleto ancho={180} alto={245} radio={radios.lg} />
+              <Esqueleto ancho={180} alto={245} radio={radios.lg} />
+            </View>
+          ) : errorDestacadas && destacadas.length === 0 ? (
+            <VistaError mensaje="No pudimos cargar las recomendaciones." onReintentar={recargarDestacadas} />
           ) : destacadas.length === 0 ? (
-            <View style={estilos.sinRecomendaciones}>
-              <Text style={estilos.textoSinRecomendaciones}>
-                Todavía no hay recetas recomendadas disponibles.
-              </Text>
-              
+            <View style={estilos.vacio}>
+              <Text style={estilos.textoVacio}>Pronto verás aquí recetas pensadas para ti.</Text>
+              <Pressable onPress={() => navigation.navigate('Recetario')} style={estilos.botonVacio}>
+                <Text style={estilos.textoBotonVacio}>Explorar el recetario</Text>
+              </Pressable>
             </View>
           ) : (
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{
-                  marginTop: espaciado.sm,
-                  minHeight: 230,
-                }}
-              >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.carrusel}>
               {destacadas.map((rec, indice) => (
                 <TarjetaRecomendada
                   key={rec.receta.id}
@@ -235,58 +221,145 @@ export function HomeScreen() {
             </ScrollView>
           )}
         </View>
+
+        {deComunidad.length > 0 && (
+          <View style={estilos.seccion}>
+            <EncabezadoSeccion titulo="Nuevas en la comunidad" accion="Ver más" onAccion={() => abrirComunidad()} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.carruselMini}>
+              {deComunidad.slice(0, 6).map((receta) => (
+                <TarjetaComunidadMini key={receta.id} receta={receta} onPress={() => abrirComunidad(receta.id)} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.fondo,
   },
-  header: {
+  contenido: {
+    paddingBottom: 120,
+  },
+  bloque: {
+    backgroundColor: colors.encabezado,
+    paddingHorizontal: espaciado.md,
+    paddingBottom: 76,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  filaSuperior: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lado: {
+    width: 44,
+  },
+  ladoDerecho: {
+    alignItems: 'flex-end',
+  },
+  logo: {
+    width: 150,
+    height: 42,
+    tintColor: colors.sobreEncabezado,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.superficieCalida,
     alignItems: 'center',
     justifyContent: 'center',
-  
-    paddingTop: 10,
-    paddingBottom: 10,
-  
-    minHeight: 65,
   },
-  
-  logo: {
-    width: 155,
-    height: 45,
+  textoAvatar: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.cuerpo,
+    color: colors.primario,
   },
-  buscadorContenedor: {
-    paddingHorizontal: espaciado.md,
-    marginTop: espaciado.md,
-  },
-  saludoContenedor: {
-    paddingHorizontal: espaciado.md,
-    marginVertical: espaciado.md,
-  },
-  seccionDestacadas: {
-    paddingHorizontal: espaciado.md,
+  saludo: {
+    fontFamily: fuentes.negrita,
+    fontSize: 22,
+    lineHeight: 29,
+    color: colors.resaltado,
     marginTop: espaciado.lg,
-    marginBottom: espaciado.xl,
   },
-
-  contenidoScroll: {
-    paddingBottom: espaciado.xl,
+  titulo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 29,
+    lineHeight: 37,
+    color: colors.sobreEncabezado,
+    marginTop: 2,
+    marginBottom: espaciado.md,
   },
-
-  sinRecomendaciones: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+  montada: {
+    marginTop: -56,
+    paddingHorizontal: espaciado.md,
+  },
+  verSemana: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 2,
+    paddingHorizontal: espaciado.md + 4,
+    paddingTop: espaciado.sm,
+  },
+  textoVerSemana: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.acentoOscuro,
+  },
+  seccion: {
+    marginTop: espaciado.lg,
+  },
+  carrusel: {
+    flexDirection: 'row',
+    gap: espaciado.md,
+    paddingHorizontal: espaciado.md,
+  },
+  carruselMini: {
+    gap: espaciado.sm,
+    paddingHorizontal: espaciado.md,
+    paddingBottom: espaciado.sm,
+  },
+  aviso: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.base,
+    lineHeight: 20,
+    color: colors.textoSuave,
+    paddingHorizontal: espaciado.md,
+    marginTop: -4,
+    marginBottom: espaciado.sm,
+  },
+  vacio: {
+    marginHorizontal: espaciado.md,
+    backgroundColor: colors.superficie,
+    borderRadius: radios.lg,
     padding: espaciado.md,
-    marginTop: espaciado.sm,
+    alignItems: 'center',
   },
-
-  textoSinRecomendaciones: {
-    color: colors.textoPrincipal,
-    fontSize: 14,
+  textoVacio: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 22,
+    color: colors.textoSuave,
     textAlign: 'center',
+  },
+  botonVacio: {
+    marginTop: espaciado.sm,
+    minHeight: 46,
+    paddingHorizontal: espaciado.lg,
+    borderRadius: radios.pill,
+    backgroundColor: colors.primario,
+    justifyContent: 'center',
+  },
+  textoBotonVacio: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.cuerpo,
+    color: colors.sobrePrimario,
   },
 });
