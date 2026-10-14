@@ -22,7 +22,7 @@ import {
 } from '../hooks/useCrearReceta';
 import { PasoBasico } from '../components/comunidad/crear/PasoBasico';
 import { PasoIngredientes } from '../components/comunidad/crear/PasoIngredientes';
-import { PasoPreparacion } from '../components/comunidad/crear/PasoPreparacion.tsx';
+import { PasoPreparacion } from '../components/comunidad/crear/PasoPreparacion';
 import { PasoDetalles } from '../components/comunidad/crear/PasoDetalles';
 import { SelectorIngredienteReceta } from '../components/comunidad/SelectorIngredienteReceta';
 import { EstadoEnvio } from '../components/comunidad/EstadoEnvio';

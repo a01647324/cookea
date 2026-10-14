@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,6 +45,7 @@ export function RecetarioScreen() {
     albumes,
     cargando: cargandoAlbumes,
     error: errorAlbumes,
+    crearAlbum,
     agregarRecetaAAlbum,
   } = useAlbums();
   
@@ -65,6 +67,13 @@ export function RecetarioScreen() {
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [tiempoMaximo, setTiempoMaximo] = useState<number | null>(null);
   const [orden, setOrden] = useState<'nombre' | 'tiempo'>('nombre');
+  const [creandoColeccion, setCreandoColeccion] = useState(false);
+
+  const [nombreNuevaColeccion, setNombreNuevaColeccion] =
+    useState('');
+
+  const [guardandoColeccion, setGuardandoColeccion] =
+    useState(false);
 
   const recetasFiltradas = useMemo(() => {
     let resultado = [...recetas];
@@ -110,6 +119,53 @@ export function RecetarioScreen() {
       Alert.alert(
         'Guardada',
         `${nombreReceta} se agregó a tu colección.`
+      );
+    }
+  }
+
+  async function crearYAgregarColeccion() {
+    if (!recetaParaColeccion) return;
+  
+    const nombreLimpio =
+      nombreNuevaColeccion.trim();
+  
+    if (!nombreLimpio) {
+      Alert.alert(
+        'Nombre requerido',
+        'Escribe un nombre para la colección.'
+      );
+      return;
+    }
+  
+    setGuardandoColeccion(true);
+  
+    const albumCreado =
+      await crearAlbum(nombreLimpio);
+  
+    if (!albumCreado) {
+      setGuardandoColeccion(false);
+      return;
+    }
+  
+    const ok =
+      await agregarRecetaAAlbum(
+        albumCreado.id,
+        recetaParaColeccion.id
+      );
+  
+    setGuardandoColeccion(false);
+  
+    if (ok) {
+      const nombreReceta =
+        recetaParaColeccion.nombre;
+  
+      setNombreNuevaColeccion('');
+      setCreandoColeccion(false);
+      setRecetaParaColeccion(null);
+  
+      Alert.alert(
+        'Guardada',
+        `${nombreReceta} se agregó a "${albumCreado.nombre}".`
       );
     }
   }
@@ -401,7 +457,7 @@ export function RecetarioScreen() {
         </View>
 
       ) : (
-
+      <>
         <ScrollView
           style={
             estilos.listaColecciones
@@ -485,9 +541,78 @@ export function RecetarioScreen() {
 
             )
           )}
+        
 
         </ScrollView>
-
+        {!creandoColeccion ? (
+          <Pressable
+            style={estilos.botonNuevaColeccion}
+            onPress={() =>
+              setCreandoColeccion(true)
+            }
+          >
+            <Ionicons
+              name="add-circle-outline"
+              size={22}
+              color={colors.olivaOscuro}
+            />
+        
+            <Text
+              style={estilos.textoNuevaColeccion}
+            >
+              Crear nueva colección
+            </Text>
+          </Pressable>
+        ) : (
+          <View
+            style={estilos.crearColeccionContenedor}
+          >
+            <TextInput
+              value={nombreNuevaColeccion}
+              onChangeText={setNombreNuevaColeccion}
+              placeholder="Nombre de la colección"
+              placeholderTextColor={
+                colors.textoSecundario
+              }
+              style={estilos.inputNuevaColeccion}
+              maxLength={40}
+            />
+        
+            <View
+              style={estilos.botonesNuevaColeccion}
+            >
+              <Pressable
+                onPress={() => {
+                  setCreandoColeccion(false);
+                  setNombreNuevaColeccion('');
+                }}
+              >
+                <Text
+                  style={estilos.cancelarColeccion}
+                >
+                  Cancelar
+                </Text>
+              </Pressable>
+        
+              <Pressable
+                disabled={guardandoColeccion}
+                style={estilos.guardarColeccion}
+                onPress={() =>
+                  void crearYAgregarColeccion()
+                }
+              >
+                <Text
+                  style={estilos.textoGuardarColeccion}
+                >
+                  {guardandoColeccion
+                    ? 'Creando...'
+                    : 'Crear y agregar'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </>
       )}
 
     </View>
@@ -742,5 +867,74 @@ const estilos = StyleSheet.create({
   
     padding:
       espaciado.md,
+  },
+  botonNuevaColeccion: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.oliva,
+  
+    borderRadius: radios.md,
+  
+    paddingVertical: 12,
+    marginTop: espaciado.sm,
+  
+    gap: 6,
+  },
+  
+  textoNuevaColeccion: {
+    color: colors.olivaOscuro,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  
+  crearColeccionContenedor: {
+    marginTop: espaciado.md,
+  },
+  
+  inputNuevaColeccion: {
+    borderWidth: 1,
+    borderColor: colors.borde,
+  
+    backgroundColor: colors.background,
+  
+    borderRadius: radios.md,
+  
+    paddingHorizontal: espaciado.md,
+    paddingVertical: 12,
+  
+    color: colors.textoPrincipal,
+    fontSize: 16,
+  },
+  
+  botonesNuevaColeccion: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  
+    marginTop: espaciado.sm,
+    gap: espaciado.md,
+  },
+  
+  cancelarColeccion: {
+    color: colors.textoSecundario,
+    fontWeight: '600',
+  },
+  
+  guardarColeccion: {
+    backgroundColor: colors.oliva,
+  
+    borderRadius: radios.md,
+  
+    paddingHorizontal: espaciado.md,
+    paddingVertical: 10,
+  },
+  
+  textoGuardarColeccion: {
+    color: colors.textoSobreColor,
+    fontWeight: '700',
   },
 });
