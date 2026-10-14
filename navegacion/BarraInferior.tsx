@@ -6,6 +6,7 @@ import BarraPestanas from "./BarraPestanas";
 
 // Pantallas de la pestaña "Inicio"
 import { AlacenaScreen } from "../screens/AlacenaScreen";
+import { QueCocinoHoyScreen } from "../screens/queCocinoHoyScreen"; 
 import { HomeScreen } from "../screens/HomeScreen";
 import { RecetarioScreen } from "../screens/RecetarioScreen";
 import { RecipeDetailScreen } from "../screens/RecipeDetailScreen";
@@ -44,6 +45,7 @@ export type InicioParamList = {
   TuSemana: { fechaInicial?: string } | undefined;
   Personaliza: undefined;
   Alacena: undefined;
+  QueCocino: undefined; 
   Favoritos: undefined;
 
   ColeccionDetalle: {
@@ -102,6 +104,7 @@ function PestanaInicio() {
       <InicioStack.Screen name="Recetario" component={RecetarioScreen} />
       <InicioStack.Screen name="RecetaDetalle" component={RecipeDetailScreen} />
       <InicioStack.Screen name="Alacena" component={AlacenaScreen} />
+      <InicioStack.Screen name="QueCocino" component={QueCocinoHoyScreen} />
       {/* Alergias sí lleva header nativo simple, porque su propio diseño
           no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
       <InicioStack.Screen

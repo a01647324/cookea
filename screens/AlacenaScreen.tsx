@@ -24,6 +24,7 @@ import { EditarItemModal } from '../components/alacena/editarItemModal';
 import { DespensaBamxModal } from '../components/alacena/despensaBamxModal';
 import { VistaError } from '../components/StateViews';
 import { mostrarAviso } from '../lib/avisos';
+import { BotonQueCocino } from '../components/recomendador/botonQueCocino';
 
 export function AlacenaScreen() {
   const navigation = useNavigation<any>();
@@ -98,6 +99,11 @@ export function AlacenaScreen() {
           </Text>
         )}
       </View>
+
+      {}
+      {!cargando && items.length > 0 && (
+        <BotonQueCocino onPress={() => navigation.navigate('QueCocino')} />
+      )}
 
       {}
       <View style={estilos.buscadorContenedor}>

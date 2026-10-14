@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, } from '@react-navigation/native';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useWeekPlan } from '../hooks/useWeekPlan';
-import { useFeaturedRecipes } from '../hooks/useFeaturedRecipes';
+import { useRecomendaciones } from '../hooks/useRecomendaciones'; 
 import { SearchBar } from '../components/SearchBar';
 import { WeekPlanSection } from '../components/WeekPlanSection';
 import { QuickAccessGrid } from '../components/QuickAccessGrid';
 import { TipBanner } from '../components/TipBanner';
-import { RecipeCard } from '../components/RecipeCard';
+import { TarjetaRecomendada } from '../components/recomendador/tarjetaRecomendada'; 
+import { BotonQueCocino } from '../components/recomendador/botonQueCocino'; 
 import { VistaCargando, VistaError } from '../components/StateViews';
 import { colors, coloresTarjetaReceta, espaciado, tipografia } from '../theme/theme';
 import TarjetaPersonaliza from '../perfil/TarjetaPersonaliza'; // PERFIL:
@@ -44,12 +45,14 @@ export function HomeScreen() {
 
     }, [recargarPlan, recargarPerfil])
   );
+  
   const {
-    recetas: destacadas,
+    items: destacadas,
+    alacenaVacia,
     cargando: cargandoDestacadas,
     error: errorDestacadas,
     recargar: recargarDestacadas,
-  } = useFeaturedRecipes(6);
+  } = useRecomendaciones(6, true);
   
   const [refrescando, setRefrescando] = React.useState(false);
 
@@ -190,7 +193,15 @@ export function HomeScreen() {
         <TipBanner />
 
         <View style={estilos.seccionDestacadas}>
-          <Text style={tipografia.subtitulo}>Recomendadas para ti</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Text style={tipografia.subtitulo}>Recomendadas para ti</Text>
+            <BotonQueCocino variante="enlace" onPress={() => navigation.navigate('QueCocino')} />
+          </View>
+          {alacenaVacia && !cargandoDestacadas && !errorDestacadas && (
+            <Text style={[tipografia.chico, { marginTop: espaciado.xs }]}>
+              Agrega ingredientes a tu alacena para recomendaciones a tu medida.
+            </Text>
+          )}
 
           {cargandoDestacadas ? (
             <VistaCargando />
@@ -209,16 +220,16 @@ export function HomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 style={{
                   marginTop: espaciado.sm,
-                  minHeight: 210,
+                  minHeight: 230,
                 }}
               >
-              {destacadas.map((receta, indice) => (
-                <RecipeCard
-                  key={receta.id}
-                  receta={receta}
+              {destacadas.map((rec, indice) => (
+                <TarjetaRecomendada
+                  key={rec.receta.id}
+                  recomendacion={rec}
                   variante="carrusel"
                   colorFondo={coloresTarjetaReceta[indice % coloresTarjetaReceta.length]}
-                  onPress={() => navigation.navigate('RecetaDetalle', { recetaId: receta.id })}
+                  onPress={() => navigation.navigate('RecetaDetalle', { recetaId: rec.receta.id })}
                 />
               ))}
             </ScrollView>
