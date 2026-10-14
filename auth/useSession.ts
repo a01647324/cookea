@@ -16,8 +16,7 @@ async function guardarRecuperando(valor: boolean) {
     } else {
       await AsyncStorage.removeItem(CLAVE_RECUPERANDO);
     }
-  } catch (e) {
-    console.log("No se pudo guardar 'recuperando'", e);
+  } catch {
   }
 }
 
@@ -39,6 +38,8 @@ export default function useSession() {
   // (clase) Igual que onAuthStateChanged: un useEffect con [] que corre una
   // sola vez cuando se abre la app.
   useEffect(() => {
+    let activo = true;
+    let revision = 0;
     // (nuevo) Leemos la sesión que quedó guardada (AsyncStorage) de la última
     // vez que se abrió la app. Así el usuario no tiene que volver a iniciar sesión.
     // AUTH: también leemos "recuperando" ANTES de quitar el indicador de carga,
@@ -48,6 +49,7 @@ export default function useSession() {
         const { data } = await supabase.auth.getSession();
         const guardado = await AsyncStorage.getItem(CLAVE_RECUPERANDO);
 
+        if (!activo || revision !== 0) return;
         if (guardado !== null && data.session !== null) {
           setRecuperando(true);
         } else if (guardado !== null) {
@@ -55,10 +57,9 @@ export default function useSession() {
           guardarRecuperando(false);
         }
         setSession(data.session);
-      } catch (e) {
-        console.log("No se pudo leer la sesión guardada", e);
+      } catch {
       } finally {
-        setCargando(false);
+        if (activo) setCargando(false);
       }
     }
     leerDatosGuardados();
@@ -66,6 +67,9 @@ export default function useSession() {
     // (clase/nuevo) Equivalente a onAuthStateChanged de Firebase: nos avisa
     // cada vez que alguien inicia o cierra sesión.
     const { data } = supabase.auth.onAuthStateChange((evento, nuevaSesion) => {
+      if (!activo) return;
+      if (evento !== "INITIAL_SESSION") revision++;
+      else if (revision !== 0) return;
       // AUTH: (nuevo) PASSWORD_RECOVERY llega cuando el código del correo fue
       // correcto. Supabase ya inició sesión, pero falta la nueva contraseña.
       if (evento === "PASSWORD_RECOVERY") {
@@ -83,6 +87,7 @@ export default function useSession() {
     // (nuevo) Al desmontar, cancelamos la suscripción para no seguir
     // escuchando cambios de una pantalla que ya no existe.
     return () => {
+      activo = false;
       data.subscription.unsubscribe();
     };
   }, []);
@@ -93,11 +98,11 @@ export default function useSession() {
   async function cerrarSesion() {
     try {
       // (nuevo) Supabase no lanza el error, lo regresa en { error }.
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) {
         alert("No se pudo cerrar sesión. Intenta de nuevo.");
       }
-    } catch (e) {
+    } catch {
       // (clase) "fail gracefully": si algo inesperado falla (por ejemplo, sin internet)
       alert("Ocurrió un error inesperado. Intenta de nuevo.");
     }
@@ -127,10 +132,8 @@ export default function useSession() {
       // sesión del celular y lanza SIGNED_OUT, así que siempre se regresa al Login.
       const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) {
-        console.log(error.code, error.message);
       }
-    } catch (e) {
-      console.log("Error al cancelar la recuperación", e);
+    } catch {
     } finally {
       await guardarRecuperando(false);
       setRecuperando(false);

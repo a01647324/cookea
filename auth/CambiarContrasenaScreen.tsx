@@ -1,3 +1,5 @@
+import useRetroceso from "./useRetroceso";
+import Encabezado from "../perfil/Encabezado";
 import { useRef, useState } from "react";
 import {
   View,
@@ -14,7 +16,7 @@ import { AuthError, isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { colors, espaciado, radios, tipografia } from "../theme/theme";
 import CampoFormulario from "./CampoFormulario";
-import { MINIMO_CONTRASENA, validarNuevaContrasena } from "./validaciones";
+import { AYUDA_CONTRASENA, validarNuevaContrasena } from "./validaciones";
 
 const MENSAJE_SIN_CONEXION = "No hay conexión. Revisa tu internet e intenta de nuevo.";
 
@@ -25,6 +27,7 @@ const MENSAJE_SIN_CONEXION = "No hay conexión. Revisa tu internet e intenta de 
 export default function CambiarContrasenaScreen({ navigation }: any) {
   // (clase) Un useState por cada campo y cada mensaje
   const [actual, setActual] = useState("");
+  const bloqueo = useRef(false);
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
   const [errorActual, setErrorActual] = useState("");
@@ -33,7 +36,8 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
   const [aviso, setAviso] = useState("");
 
   const [guardando, setGuardando] = useState(false);
-  const [listo, setListo] = useState(false); // true cuando ya se guardó
+  const [listo, setListo] = useState(false);
+  useRetroceso(() => { if (!bloqueo.current && !guardando) navigation.goBack(); }); // true cuando ya se guardó
 
   // (nuevo) useRef para pasar al campo de abajo con la tecla "siguiente"
   const campoNueva = useRef<TextInput>(null);
@@ -41,7 +45,6 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
 
   // (clase) Revisamos error.code para dar un mensaje claro, como en LoginScreen
   function mostrarError(error: AuthError) {
-    console.log(error.code, error.message);
 
     // (nuevo) Sin internet, Supabase regresa este tipo de error en vez de lanzarlo
     if (isAuthRetryableFetchError(error)) {
@@ -76,7 +79,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
   }
 
   async function guardar() {
-    if (guardando) return;
+    if (bloqueo.current || guardando) return;
 
     // (clase) Validaciones en el celular antes de llamar al servidor
     setErrorActual("");
@@ -99,6 +102,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
       return;
     }
 
+    bloqueo.current = true;
     setGuardando(true);
 
     // (clase) async/await con try/catch/finally para "fail gracefully"
@@ -115,10 +119,10 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
         return;
       }
       setListo(true);
-    } catch (e) {
-      console.log("Error al cambiar la contraseña", e);
+    } catch {
       setAviso(MENSAJE_SIN_CONEXION);
     } finally {
+      bloqueo.current = false;
       setGuardando(false);
     }
   }
@@ -127,6 +131,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
   if (listo) {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo="Cambiar contraseña" onVolver={() => navigation.goBack()} deshabilitado={guardando} />
         <View style={styles.contenido}>
           <Text style={styles.titulo} accessibilityRole="header">
             Tu contraseña se actualizó
@@ -137,7 +142,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
           </Text>
           <TouchableOpacity
             style={styles.botonPrincipal}
-            onPress={() => navigation.goBack()}
+            onPress={() => { if (!bloqueo.current && !guardando) navigation.goBack(); }}
             accessibilityRole="button"
             accessibilityLabel="Volver"
           >
@@ -150,6 +155,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo="Cambiar contraseña" onVolver={() => navigation.goBack()} deshabilitado={guardando} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -158,9 +164,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
           contentContainerStyle={styles.contenido}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.titulo} accessibilityRole="header">
-            Cambiar contraseña
-          </Text>
+          
 
           {/* (nuevo) Aviso general arriba del formulario, en vez de alert() */}
           {aviso !== "" && (
@@ -191,7 +195,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
           <CampoFormulario
             ref={campoNueva}
             etiqueta="Nueva contraseña"
-            ayuda={`Mínimo ${MINIMO_CONTRASENA} caracteres.`}
+            ayuda={AYUDA_CONTRASENA}
             esContrasena
             value={nueva}
             onChangeText={(texto) => {
@@ -243,7 +247,7 @@ export default function CambiarContrasenaScreen({ navigation }: any) {
           {/* Siempre hay salida: regresar sin cambiar nada */}
           <TouchableOpacity
             style={styles.botonSecundario}
-            onPress={() => navigation.goBack()}
+            onPress={() => { if (!bloqueo.current && !guardando) navigation.goBack(); }}
             accessibilityRole="button"
             accessibilityLabel="Cancelar y volver"
           >
@@ -266,6 +270,7 @@ const styles = StyleSheet.create({
   },
   contenido: {
     flexGrow: 1,
+    width: '100%', maxWidth: 640, alignSelf: 'center',
     padding: espaciado.lg,
   },
   titulo: {
@@ -290,7 +295,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonPrincipal: {
-    minHeight: 48,
+    minHeight: 56,
     backgroundColor: colors.botonPrincipal,
     borderRadius: radios.pill,
     paddingVertical: espaciado.md,
@@ -301,11 +306,12 @@ const styles = StyleSheet.create({
   },
   textoBotonPrincipal: {
     color: colors.textoSobreColor,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonSecundario: {
-    minHeight: 48,
+    minHeight: 56,
     borderWidth: 2,
     borderColor: colors.olivaOscuro,
     borderRadius: radios.pill,
@@ -317,7 +323,8 @@ const styles = StyleSheet.create({
   },
   textoBotonSecundario: {
     color: colors.olivaOscuro,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonDeshabilitado: {

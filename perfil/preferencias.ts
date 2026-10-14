@@ -15,8 +15,8 @@ export const PERSONAS_MAX = 20;
 // Le quitamos los espacios del inicio y del final antes de contar.
 export function validarAlias(texto: string): string | null {
   const limpio = texto.trim();
-  if (limpio.length < ALIAS_MIN || limpio.length > ALIAS_MAX) {
-    return `Tu alias debe tener de ${ALIAS_MIN} a ${ALIAS_MAX} letras.`;
+  if (Array.from(limpio).length < ALIAS_MIN || Array.from(limpio).length > ALIAS_MAX) {
+    return `Tu alias debe tener de ${ALIAS_MIN} a ${ALIAS_MAX} caracteres.`;
   }
   return null;
 }
@@ -24,8 +24,8 @@ export function validarAlias(texto: string): string | null {
 // Regresa el mensaje de error del nombre, o null si está bien.
 export function validarNombre(texto: string): string | null {
   const limpio = texto.trim();
-  if (limpio.length < NOMBRE_MIN || limpio.length > NOMBRE_MAX) {
-    return `Tu nombre debe tener de ${NOMBRE_MIN} a ${NOMBRE_MAX} letras.`;
+  if (Array.from(limpio).length < NOMBRE_MIN || Array.from(limpio).length > NOMBRE_MAX) {
+    return `Tu nombre debe tener de ${NOMBRE_MIN} a ${NOMBRE_MAX} caracteres.`;
   }
   return null;
 }

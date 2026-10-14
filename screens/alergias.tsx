@@ -1,3 +1,4 @@
+import useProteccionCapturas from "../perfil/useProteccionCapturas";
 import { useEffect, useState } from 'react';
 import {
     View,
@@ -19,6 +20,7 @@ type Alergeno = {
 };
 
 export default function Alergias() {
+  useProteccionCapturas("alergias");
     const [alergenos, setAlergenos] = useState<Alergeno[]>([]);
     const [seleccionados, setSeleccionados] = useState<number[]>([]);
     const [cargando, setCargando] = useState(true);

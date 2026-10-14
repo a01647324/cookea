@@ -1,5 +1,8 @@
+import Encabezado from "../perfil/Encabezado";
+import useRetroceso from "./useRetroceso";
 import { useRef, useState } from "react";
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -14,7 +17,7 @@ import { AuthError, isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { colors, espaciado, radios, tipografia } from "../theme/theme";
 import CampoFormulario from "./CampoFormulario";
-import { MINIMO_CONTRASENA, validarNuevaContrasena } from "./validaciones";
+import { AYUDA_CONTRASENA, validarNuevaContrasena } from "./validaciones";
 
 const MENSAJE_SIN_CONEXION = "No hay conexión. Revisa tu internet e intenta de nuevo.";
 
@@ -30,6 +33,8 @@ type Props = {
 // Ya hay sesión (el código del correo fue correcto); falta la nueva contraseña.
 export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancelar }: Props) {
   // (clase) Un useState por cada campo y cada mensaje
+  const bloqueo = useRef(false);
+  const confirmacionAbierta = useRef(false);
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
   const [errorNueva, setErrorNueva] = useState("");
@@ -45,7 +50,6 @@ export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancel
 
   // (clase) Revisamos error.code para dar un mensaje claro, como en LoginScreen
   function mostrarError(error: AuthError) {
-    console.log(error.code, error.message);
 
     // (nuevo) Sin internet, Supabase regresa este tipo de error en vez de lanzarlo
     if (isAuthRetryableFetchError(error)) {
@@ -69,7 +73,7 @@ export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancel
   }
 
   async function guardar() {
-    if (guardando) return;
+    if (bloqueo.current || guardando || cancelando || listo || confirmacionAbierta.current) return;
 
     // (clase) Validaciones en el celular antes de llamar al servidor
     setErrorNueva("");
@@ -82,6 +86,7 @@ export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancel
       return;
     }
 
+    bloqueo.current = true;
     setGuardando(true);
 
     // (clase) async/await con try/catch/finally para "fail gracefully"
@@ -96,31 +101,50 @@ export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancel
       }
       // La contraseña ya cambió: borramos el dato del celular antes de
       // mostrar el éxito, por si la persona cierra la app en esa pantalla.
-      await onGuardada();
       setListo(true);
-    } catch (e) {
-      console.log("Error al guardar la contraseña", e);
+      try { await onGuardada(); }
+      catch { setAviso("Tu contraseña se actualizó, pero no pudimos guardar el estado en este dispositivo."); }
+    } catch {
       setAviso(MENSAJE_SIN_CONEXION);
     } finally {
+      bloqueo.current = false;
       setGuardando(false);
     }
   }
 
   async function cancelar() {
+    if (bloqueo.current || guardando || cancelando || listo) return;
+    bloqueo.current = true;
     setCancelando(true);
     // useSession cierra la sesión y App.tsx regresa al Login.
     // La contraseña anterior sigue funcionando.
-    await onCancelar();
+    try { await onCancelar(); }
+    catch { setAviso("No se pudo cancelar. Intenta de nuevo."); }
+    finally { bloqueo.current = false; setCancelando(false); }
   }
+
+
+  function confirmarCancelar() {
+    if (confirmacionAbierta.current || bloqueo.current || guardando || cancelando || listo) return;
+    confirmacionAbierta.current = true;
+    Alert.alert("¿Cancelar el cambio de contraseña?", "Tu contraseña anterior seguirá funcionando.", [
+      { text: "Seguir aquí", style: "cancel", onPress: () => { confirmacionAbierta.current = false; } },
+      { text: "Cancelar cambio", style: "destructive", onPress: () => { confirmacionAbierta.current = false; void cancelar(); } },
+    ]);
+  }
+  useRetroceso(() => { if (listo) onTerminar(); else confirmarCancelar(); });
+
 
   // Pantalla de éxito, con un botón para continuar (no una alerta)
   if (listo) {
     return (
       <SafeAreaView style={styles.pantalla}>
+      <Encabezado titulo="Nueva contraseña" onVolver={listo ? undefined : confirmarCancelar} textoVolver="Cancelar" deshabilitado={guardando || cancelando} />
         <View style={styles.contenido}>
           <Text style={styles.titulo} accessibilityRole="header">
             Tu contraseña se actualizó
           </Text>
+          {aviso !== "" && <Text style={styles.textoAviso}>{aviso}</Text>}
           <Text style={styles.explicacion}>
             Desde ahora usa tu nueva contraseña para iniciar sesión.
           </Text>
@@ -141,6 +165,7 @@ export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancel
 
   return (
     <SafeAreaView style={styles.pantalla}>
+      <Encabezado titulo="Nueva contraseña" onVolver={listo ? undefined : confirmarCancelar} textoVolver="Cancelar" deshabilitado={guardando || cancelando} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -163,7 +188,7 @@ export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancel
 
           <CampoFormulario
             etiqueta="Nueva contraseña"
-            ayuda={`Mínimo ${MINIMO_CONTRASENA} caracteres.`}
+            ayuda={AYUDA_CONTRASENA}
             esContrasena
             value={nueva}
             onChangeText={(texto) => {
@@ -215,7 +240,7 @@ export default function NuevaContrasenaScreen({ onGuardada, onTerminar, onCancel
           {/* Siempre hay salida: cancelar y regresar al Login */}
           <TouchableOpacity
             style={[styles.botonSecundario, ocupado && styles.botonDeshabilitado]}
-            onPress={cancelar}
+            onPress={confirmarCancelar}
             disabled={ocupado}
             accessibilityRole="button"
             accessibilityLabel="Cancelar y regresar a iniciar sesión"
@@ -241,6 +266,7 @@ const styles = StyleSheet.create({
   },
   contenido: {
     flexGrow: 1,
+    width: '100%', maxWidth: 640, alignSelf: 'center',
     padding: espaciado.lg,
   },
   indicadorPaso: {
@@ -270,7 +296,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonPrincipal: {
-    minHeight: 48,
+    minHeight: 56,
     backgroundColor: colors.botonPrincipal,
     borderRadius: radios.pill,
     paddingVertical: espaciado.md,
@@ -281,11 +307,12 @@ const styles = StyleSheet.create({
   },
   textoBotonPrincipal: {
     color: colors.textoSobreColor,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonSecundario: {
-    minHeight: 48,
+    minHeight: 56,
     borderWidth: 2,
     borderColor: colors.olivaOscuro,
     borderRadius: radios.pill,
@@ -297,7 +324,8 @@ const styles = StyleSheet.create({
   },
   textoBotonSecundario: {
     color: colors.olivaOscuro,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonDeshabilitado: {

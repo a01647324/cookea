@@ -1,7 +1,13 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
+import useProteccionCapturas from "./useProteccionCapturas";
+import useSession from "../auth/useSession";
+import { obtenerSeccion, SeccionPreferencias } from "./secciones";
+import useCocina from "./useCocina";
+import BloquesCocina from "./BloquesCocina";
+import Encabezado from "./Encabezado";
+import { useCallback, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { usePreventRemove } from "@react-navigation/native";
+import { useFocusEffect, usePreventRemove } from "@react-navigation/native";
 import { VistaCargando } from "../components/StateViews";
 import { colors, espaciado, radios, tipografia } from "../theme/theme";
 import usePreferencias from "./usePreferencias";
@@ -13,6 +19,14 @@ import ListaAlergenos from "./ListaAlergenos";
 // desplazamiento, porque la persona ya las conoce.
 // (clase) Componente declarado como función y navigation que recibe de React Navigation
 export default function PreferenciasScreen({ navigation }: any) {
+  useProteccionCapturas("preferencias");
+  const { session } = useSession();
+  const [seccion, setSeccion] = useState<SeccionPreferencias>(() => session ? obtenerSeccion(session.user.id) : 'restricciones');
+  useFocusEffect(useCallback(() => { if (session) setSeccion(obtenerSeccion(session.user.id)); }, [session]));
+  const tituloSeccion = { restricciones: 'Mis restricciones', hogar: 'Mi hogar', cocina: 'Mi cocina' }[seccion];
+  const cocina = useCocina();
+  const bloqueo = useRef(false);
+  const [guardandoTodo, setGuardandoTodo] = useState(false);
   const {
     alergenos,
     personas,
@@ -21,21 +35,27 @@ export default function PreferenciasScreen({ navigation }: any) {
     alternarPropia,
     hogar,
     alternarHogar,
-    hayCambios,
-    cargando,
-    errorCarga,
-    recargar,
-    guardando,
+    hayCambios: cambiosAlergias,
+    cargando: cargaAlergias,
+    errorCarga: errorAlergias,
+    recargar: recargarAlergias,
+    guardando: guardandoAlergias,
     guardar,
   } = usePreferencias();
 
+  const hayCambios = cambiosAlergias || cocina.hayCambios;
+  const cargando = cargaAlergias || cocina.cargando;
+  const errorCarga = errorAlergias || cocina.error;
+  const guardando = guardandoTodo || guardandoAlergias || cocina.guardando;
+  const recargar = () => { if (errorAlergias) recargarAlergias(); if (cocina.error) cocina.recargar(); };
   // (clase) Un useState por cada dato de la pantalla
   const [aviso, setAviso] = useState("");
   const [listo, setListo] = useState(false); // true cuando ya se guardó
 
   // (nuevo) usePreventRemove detiene la salida (botón "atrás", gesto o
   // goBack) mientras haya cambios sin guardar, y pregunta antes de salir.
-  usePreventRemove(hayCambios, ({ data }) => {
+  usePreventRemove((hayCambios && !listo) || guardando, ({ data }) => {
+    if (guardando) return;
     Alert.alert("¿Salir sin guardar los cambios?", "Si sales ahora, se perderán.", [
       { text: "Quedarme", style: "cancel" },
       {
@@ -49,20 +69,26 @@ export default function PreferenciasScreen({ navigation }: any) {
   // Guarda en el mismo orden que Personaliza, sin la marca "personalizo".
   // Con 1 persona, usePreferencias borra las alergias del hogar.
   async function guardarCambios() {
-    if (guardando || !hayCambios) return;
+    if (bloqueo.current || guardando || !hayCambios || cargando || errorCarga) return;
+    bloqueo.current = true; setGuardandoTodo(true);
+    try {
     setAviso("");
-    const mensaje = await guardar();
+    const mensaje = seccion === "cocina" ? null : await guardar(propias, hogar, seccion);
     if (mensaje !== null) {
-      setAviso(mensaje);
+      setAviso("No se completó el guardado. Algunos cambios pueden haberse guardado. Conservamos tu selección para reintentar. " + mensaje);
       return;
     }
+    const errorCocina = seccion === "hogar" ? null : await cocina.guardar(seccion === "restricciones" ? "gustos" : "cocina");
+    if (errorCocina) { setAviso(errorCocina); return; }
     setListo(true);
+    } finally { bloqueo.current = false; setGuardandoTodo(false); }
   }
 
   // Pantalla de éxito, con un botón para volver (no una alerta)
   if (listo) {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
         <View style={styles.contenido}>
           <Text style={styles.titulo} accessibilityRole="header">
             Tus preferencias se guardaron
@@ -83,6 +109,7 @@ export default function PreferenciasScreen({ navigation }: any) {
   if (cargando) {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
         <VistaCargando mensaje="Cargando tus preferencias…" />
       </SafeAreaView>
     );
@@ -91,6 +118,7 @@ export default function PreferenciasScreen({ navigation }: any) {
   if (errorCarga !== "") {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
         <View style={styles.contenido}>
           <View style={styles.aviso} accessibilityLiveRegion="polite">
             <Text style={styles.textoAviso}>{errorCarga}</Text>
@@ -120,9 +148,11 @@ export default function PreferenciasScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.pantalla} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.contenido}>
+        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.contenido} keyboardShouldPersistTaps="handled">
         <Text style={styles.titulo} accessibilityRole="header">
-          Editar preferencias
+          {tituloSeccion}
         </Text>
 
         {/* (nuevo) Aviso general arriba, en vez de alert() */}
@@ -132,40 +162,25 @@ export default function PreferenciasScreen({ navigation }: any) {
           </View>
         )}
 
-        <Text style={styles.tituloSeccion} accessibilityRole="header">
-          Personas en tu casa
-        </Text>
-        <Text style={styles.explicacion}>Contándote a ti.</Text>
-        <SelectorPersonas valor={personas} onCambiar={cambiarPersonas} deshabilitado={guardando} />
+        {seccion === 'restricciones' && <>
+          <Text style={styles.tituloSeccion}>Tus alergias</Text>
+          <ListaAlergenos alergenos={alergenos} seleccionados={propias} onAlternar={alternarPropia} deshabilitado={guardando} />
+          <BloquesCocina cocina={cocina} deshabilitado={guardando} solo="gustos" />
+        </>}
+        {seccion === 'hogar' && <>
+          <Text style={styles.tituloSeccion}>Personas en tu casa</Text>
+          <Text style={styles.explicacion}>Contándote a ti.</Text>
+          <SelectorPersonas valor={personas} onCambiar={cambiarPersonas} deshabilitado={guardando} />
+          <Text style={styles.tituloSeccion}>Alergias de las demás personas de tu casa</Text>
+          {personas === 1 ? <Text style={styles.explicacion}>Si vives sola o solo, al guardar se eliminarán las alergias del hogar registradas.</Text> : <ListaAlergenos alergenos={alergenos} seleccionados={hogar} onAlternar={alternarHogar} deshabilitado={guardando} />}
+        </>}
+        {seccion === 'cocina' && <BloquesCocina cocina={cocina} deshabilitado={guardando} solo="cocina" />}
 
-        <Text style={styles.tituloSeccion} accessibilityRole="header">
-          Tus alergias
-        </Text>
-        <ListaAlergenos
-          alergenos={alergenos}
-          seleccionados={propias}
-          onAlternar={alternarPropia}
-          deshabilitado={guardando}
-        />
-
-        <Text style={[styles.tituloSeccion, styles.separacion]} accessibilityRole="header">
-          Alergias de las demás personas de tu casa
-        </Text>
-        {personas === 1 ? (
-          <Text style={styles.explicacion}>
-            Si vives sola o solo, no hay alergias de otras personas que guardar.
-          </Text>
-        ) : (
-          <ListaAlergenos
-            alergenos={alergenos}
-            seleccionados={hogar}
-            onAlternar={alternarHogar}
-            deshabilitado={guardando}
-          />
-        )}
-
+      </ScrollView>
+      {/* (nuevo) Acción persistente, fuera del formulario desplazable. */}
+      <View style={styles.acciones}>
         <TouchableOpacity
-          style={[styles.botonPrincipal, styles.separacion, !puedeGuardar && styles.botonDeshabilitado]}
+          style={[styles.botonPrincipal, !puedeGuardar && styles.botonDeshabilitado]}
           onPress={guardarCambios}
           disabled={!puedeGuardar}
           accessibilityRole="button"
@@ -174,29 +189,25 @@ export default function PreferenciasScreen({ navigation }: any) {
         >
           <Text style={styles.textoBotonPrincipal}>{guardando ? "Guardando…" : "Guardar"}</Text>
         </TouchableOpacity>
-
-        {/* Siempre hay salida. Si hay cambios, usePreventRemove pregunta antes */}
-        <TouchableOpacity
-          style={styles.botonSecundario}
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-        >
-          <Text style={styles.textoBotonSecundario}>Volver</Text>
-        </TouchableOpacity>
-      </ScrollView>
+        {!hayCambios && <Text style={styles.ayudaGuardar}>No hay cambios pendientes.</Text>}
+      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 // (clase) Estilos al final del archivo. Para cambiar el diseño, solo se toca esto.
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  acciones: { paddingHorizontal: espaciado.md, paddingVertical: espaciado.sm, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borde },
+  ayudaGuardar: { ...tipografia.chico, textAlign: "center", marginTop: espaciado.xs },
   pantalla: {
     flex: 1,
     backgroundColor: colors.background,
   },
   contenido: {
     flexGrow: 1,
+    width: '100%', maxWidth: 640, alignSelf: 'center',
     padding: espaciado.lg,
   },
   titulo: {
@@ -228,7 +239,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonPrincipal: {
-    minHeight: 48,
+    minHeight: 56,
     backgroundColor: colors.botonPrincipal,
     borderRadius: radios.pill,
     paddingVertical: espaciado.md,
@@ -239,11 +250,12 @@ const styles = StyleSheet.create({
   },
   textoBotonPrincipal: {
     color: colors.textoSobreColor,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonSecundario: {
-    minHeight: 48,
+    minHeight: 56,
     borderWidth: 2,
     borderColor: colors.olivaOscuro,
     borderRadius: radios.pill,
@@ -255,7 +267,8 @@ const styles = StyleSheet.create({
   },
   textoBotonSecundario: {
     color: colors.olivaOscuro,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonDeshabilitado: {

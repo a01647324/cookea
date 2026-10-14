@@ -6,8 +6,8 @@ import { colors, espaciado, radios, tipografia } from "../theme/theme";
 
 // (nuevo) Variable fuera del componente: vive mientras la app está abierta,
 // aunque la Home se vuelva a crear (por ejemplo, al cerrar y abrir sesión).
-// Al cerrar la app por completo vuelve a false y la tarjeta reaparece.
-let escondidaHastaReabrir = false;
+// Al cerrar la app se limpia el conjunto y la tarjeta reaparece.
+const usuariosQuePospusieron = new Set<string>();
 
 // TarjetaPersonaliza: invitación en la Home para contestar Personaliza.
 // No obliga a nada: "Empezar" abre Personaliza y "Ahora no" la esconde
@@ -20,27 +20,28 @@ export default function TarjetaPersonaliza() {
   const { session } = useSession();
 
   // (clase) useState para que la tarjeta desaparezca en cuanto se toca "Ahora no"
-  const [escondida, setEscondida] = useState(escondidaHastaReabrir);
+  const [escondida, setEscondida] = useState<string | null>(null);
 
   // Sin sesión todavía, ya personalizó, o tocó "Ahora no": no se muestra nada
-  if (escondida || session === null || session.user.user_metadata?.personalizo === true) {
+  if (session === null || escondida === session.user.id || usuariosQuePospusieron.has(session.user.id) || session.user.user_metadata?.personalizo === true) {
     return null;
   }
 
   // "Ahora no": solo esconde la tarjeta en memoria, sin guardar nada
   function ahoraNo() {
-    escondidaHastaReabrir = true;
-    setEscondida(true);
+    if (!session) return;
+    usuariosQuePospusieron.add(session.user.id);
+    setEscondida(session.user.id);
   }
 
   return (
     <View style={styles.tarjeta}>
       <Text style={styles.titulo} accessibilityRole="header">
-        Cuéntanos sobre tu casa
+        Personaliza tu hogar
       </Text>
       <Text style={styles.texto}>
-        Dinos cuántas personas viven contigo y sus alergias, para no mostrarte
-        recetas con esos ingredientes. Mientras tanto, verás todas las recetas.
+        Indica cuántas personas viven en casa y sus alergias.
+        Las tuyas ya están guardadas.
       </Text>
 
       <TouchableOpacity
@@ -61,8 +62,7 @@ export default function TarjetaPersonaliza() {
         <Text style={styles.textoLink}>Ahora no</Text>
       </TouchableOpacity>
       <Text style={styles.nota}>
-        Te lo recordaremos la próxima vez que abras la app. También puedes
-        hacerlo en Cuenta, en "Editar preferencias".
+        También puedes hacerlo después desde Cuenta → Mi hogar.
       </Text>
     </View>
   );
@@ -73,11 +73,12 @@ const styles = StyleSheet.create({
   tarjeta: {
     marginHorizontal: espaciado.md,
     marginTop: espaciado.md,
+    marginBottom: espaciado.lg,
     padding: espaciado.md,
     backgroundColor: colors.surface,
     borderRadius: radios.lg,
-    borderWidth: 2,
-    borderColor: colors.mostaza,
+    borderWidth: 1,
+    borderColor: colors.borde,
   },
   titulo: {
     ...tipografia.subtitulo,
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonPrincipal: {
-    minHeight: 48,
+    minHeight: 56,
     backgroundColor: colors.botonPrincipal,
     borderRadius: radios.pill,
     paddingVertical: espaciado.sm,
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   link: {
-    minHeight: 48,
+    minHeight: 56,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -6,8 +6,9 @@ import {
   TextInputProps,
   TouchableOpacity,
   StyleSheet,
+  useWindowDimensions,
 } from "react-native";
-import { colors, espaciado, radios, tipografia } from "../theme/theme";
+import { colors, espaciado, radios, tipografia, fuentes } from "../theme/theme";
 
 // CampoFormulario: un campo con su etiqueta arriba, el error debajo y, si es
 // contraseña, un botón de "Mostrar"/"Ocultar". Se usa en las tres pantallas
@@ -30,6 +31,8 @@ export default function CampoFormulario({
   ...propsDelCampo
 }: Props) {
   // (clase) useState para saber si la contraseña se ve o está oculta
+  const { fontScale, width } = useWindowDimensions();
+  const apilar = fontScale >= 1.4 || width < 340;
   const [oculta, setOculta] = useState(true);
 
   const hayError = error !== undefined && error !== "";
@@ -38,23 +41,25 @@ export default function CampoFormulario({
     <View style={styles.contenedor}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
 
-      <View style={[styles.fila, hayError && styles.filaConError]}>
+      <View style={[styles.fila, apilar && { flexDirection: "column", alignItems: "stretch" }, hayError && styles.filaConError]}>
         <TextInput
           ref={ref}
-          style={styles.input}
           placeholderTextColor={colors.textoSecundario}
           secureTextEntry={esContrasena && oculta}
           accessibilityLabel={etiqueta}
           accessibilityHint={ayuda}
           {...propsDelCampo}
+          style={[styles.input, apilar && { flex: 0 }, propsDelCampo.style]}
         />
 
         {esContrasena && (
           <TouchableOpacity
             style={styles.botonMostrar}
             onPress={() => setOculta(!oculta)}
+            disabled={propsDelCampo.editable === false}
+            accessibilityState={{ disabled: propsDelCampo.editable === false }}
             accessibilityRole="button"
-            accessibilityLabel={oculta ? "Mostrar contraseña" : "Ocultar contraseña"}
+            accessibilityLabel={(oculta ? "Mostrar: " : "Ocultar: ") + etiqueta}
           >
             <Text style={styles.textoMostrar}>{oculta ? "Mostrar" : "Ocultar"}</Text>
           </TouchableOpacity>
@@ -97,14 +102,15 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 56,
     paddingHorizontal: espaciado.md,
     paddingVertical: espaciado.sm,
     color: colors.textoPrincipal,
-    fontSize: 16,
+    fontSize: 17,
+    fontFamily: fuentes.regular,
   },
   botonMostrar: {
-    minHeight: 48,
+    minHeight: 56,
     minWidth: 48,
     paddingHorizontal: espaciado.md,
     justifyContent: "center",
@@ -112,16 +118,20 @@ const styles = StyleSheet.create({
   },
   textoMostrar: {
     color: colors.olivaOscuro,
-    fontSize: 14,
+    fontSize: 16,
+    lineHeight: 24,
     fontWeight: "700",
   },
   ayuda: {
-    ...tipografia.chico,
+    ...tipografia.cuerpo,
+    fontSize: 16,
+    lineHeight: 24,
     marginTop: espaciado.xs,
   },
   error: {
     color: colors.error,
-    fontSize: 14,
+    fontSize: 16,
+    lineHeight: 24,
     marginTop: espaciado.xs,
   },
 });
