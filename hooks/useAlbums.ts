@@ -204,7 +204,7 @@ import {
           .insert({
             usuario_id: usuario.id,
             nombre: nombreLimpio,
-            tipo: 'personalizado',
+            tipo: 'propio',
           });
   
         if (errorInsertar) {
@@ -226,6 +226,44 @@ import {
         return false;
       }
     }
+
+    async function agregarRecetaAAlbum(
+        albumId: number,
+        recetaId: number
+      ) {
+        setError(null);
+      
+        try {
+          const {
+            error: errorInsertar,
+          } = await supabase
+            .from('album_recetas')
+            .insert({
+              album_id: albumId,
+              receta_id: recetaId,
+            });
+      
+          // 23505 significa que ya estaba
+          // dentro de esa colección.
+          if (
+            errorInsertar &&
+            errorInsertar.code !== '23505'
+          ) {
+            throw errorInsertar;
+          }
+      
+          await cargar();
+      
+          return true;
+        } catch (e: any) {
+          setError(
+            e.message ??
+              'No se pudo agregar la receta a la colección.'
+          );
+      
+          return false;
+        }
+      }
   
   
     return {
@@ -235,5 +273,6 @@ import {
   
       recargar: cargar,
       crearAlbum,
+      agregarRecetaAAlbum,
     };
   }

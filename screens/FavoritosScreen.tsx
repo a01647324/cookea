@@ -141,11 +141,11 @@ export function FavoritosScreen() {
     );
 
 
-  const personalizados =
+  const propio =
     albumes.filter(
       (album) =>
         album.tipo ===
-        'personalizado'
+        'propio'
     );
 
 
@@ -459,7 +459,7 @@ export function FavoritosScreen() {
             </View>
 
 
-            {personalizados.length ===
+            {propio.length ===
             0 ? (
 
               <View
@@ -496,7 +496,7 @@ export function FavoritosScreen() {
                 }
               >
 
-                {personalizados.map(
+                {propio.map(
                   (album) => (
 
                     <Pressable

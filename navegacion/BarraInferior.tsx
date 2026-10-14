@@ -26,6 +26,10 @@ import EditarPerfilScreen from "../perfil/EditarPerfilScreen";
 import PreferenciasScreen from "../perfil/PreferenciasScreen";
 import CambiarContrasenaScreen from "../auth/CambiarContrasenaScreen";
 
+// Pantallas de la pestaña "Favoritos"
+import { FavoritosScreen } from "../screens/FavoritosScreen";
+import { ColeccionDetalleScreen } from "../screens/ColeccionDetalleScreen";
+
 // BARRA: qué pantallas tiene cada pestaña y qué parámetros recibe cada una.
 // (Antes estaban en RootStackParamList de App.tsx.)
 export type InicioParamList = {
@@ -39,7 +43,19 @@ export type InicioParamList = {
   };
   TuSemana: { fechaInicial?: string } | undefined;
   Personaliza: undefined;
-  Alacena: undefined;           
+  Alacena: undefined;
+  Favoritos: undefined;
+
+  ColeccionDetalle: {
+    albumId: number;
+    nombre: string;
+    tipo:
+      | "favoritos"
+      | "hacer_despues"
+      | "ya_preparadas"
+      | "propio";
+    abrirSelector?: boolean;
+  };           
 };
 
 export type ComunidadParamList = {
@@ -88,6 +104,16 @@ function PestanaInicio() {
       <InicioStack.Screen name="Alacena" component={AlacenaScreen} />
       {/* Alergias sí lleva header nativo simple, porque su propio diseño
           no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
+      <InicioStack.Screen
+        name="Favoritos"
+        component={FavoritosScreen}
+      />
+
+      <InicioStack.Screen
+        name="ColeccionDetalle"
+        component={ColeccionDetalleScreen}
+      />
+
       <InicioStack.Screen
         name="ModoCocina"
         component={ModoCocinaScreen}

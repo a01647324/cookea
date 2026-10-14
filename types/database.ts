@@ -96,7 +96,7 @@ export type TipoAlbum =
   | 'favoritos'
   | 'hacer_despues'
   | 'ya_preparadas'
-  | 'personalizado';
+  | 'propio';
 
 export interface Album {
   id: number;
