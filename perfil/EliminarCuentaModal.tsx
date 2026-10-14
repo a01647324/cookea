@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -30,10 +30,8 @@ type Props = {
 // SIGNED_OUT, así que App.tsx muestra el Login por sí solo.
 async function cerrarSesionLocal() {
   try {
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-    if (error) console.log(error.code, error.message);
-  } catch (e) {
-    console.log("Error al cerrar la sesión local", e);
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
   }
 }
 
@@ -56,6 +54,8 @@ async function cerrarSinConfirmar() {
 // (clase) Componente declarado como función que recibe props
 export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
   // (clase) Un useState por cada campo y cada mensaje
+  const bloqueo = useRef(false);
+  const [frase, setFrase] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [errorContrasena, setErrorContrasena] = useState("");
   const [aviso, setAviso] = useState("");
@@ -64,7 +64,8 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
   // "Cancelar", atrás de Android o tocar fuera: cierra y limpia.
   // Mientras se elimina, no se puede cerrar.
   function cerrar() {
-    if (eliminando) return;
+    if (bloqueo.current || eliminando) return;
+    setFrase("");
     setContrasena("");
     setErrorContrasena("");
     setAviso("");
@@ -72,7 +73,7 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
   }
 
   async function eliminar() {
-    if (eliminando) return; // evita mandar dos solicitudes
+    if (bloqueo.current || frase !== "ELIMINAR" || contrasena === "") return;
 
     // (clase) Validación en el celular antes de llamar al servidor
     if (contrasena === "") {
@@ -82,6 +83,7 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
 
     setErrorContrasena("");
     setAviso("");
+    bloqueo.current = true;
     setEliminando(true);
 
     // Para saber, si algo falla, si ya se había llamado a la función que borra
@@ -105,7 +107,6 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
         password: contrasena,
       });
       if (errorEntrar) {
-        console.log(errorEntrar.code, errorEntrar.message);
         // (nuevo) Sin internet, Supabase regresa este tipo de error en vez de lanzarlo
         if (isAuthRetryableFetchError(errorEntrar)) {
           setAviso(MENSAJE_SIN_CONEXION);
@@ -129,7 +130,6 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
       funcionLlamada = true;
       const { error, status } = await supabase.rpc("eliminar_mi_cuenta");
       if (error) {
-        console.log(error.code, error.message);
         // (nuevo) status 0: no hubo respuesta. No sabemos si se borró.
         if (status === 0) {
           await cerrarSinConfirmar();
@@ -144,18 +144,19 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
       // desaparece junto con la sesión.
       await cerrarSesionLocal();
       Alert.alert("Tu cuenta se eliminó", "Gracias por usar Cookea.", [{ text: "Entendido" }]);
-    } catch (e) {
-      console.log("Error al eliminar la cuenta", e);
+    } catch {
       if (funcionLlamada) {
         await cerrarSinConfirmar();
       } else {
         setAviso(MENSAJE_SIN_CONEXION);
       }
     } finally {
+      bloqueo.current = false;
       setEliminando(false);
     }
   }
 
+  const puedeEliminar = !eliminando && frase === "ELIMINAR" && contrasena !== "";
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={cerrar}>
       <KeyboardAvoidingView
@@ -186,7 +187,7 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
             <Text style={styles.explicacion}>
               Las recetas que publicaste en Comunidad se quedan para que otras
               personas no las pierdan, pero ya no tendrán tu alias: aparecerán
-              como de "Usuario eliminado".
+              como de «Usuario eliminado». Las imágenes de esas recetas pueden conservarse.
             </Text>
             <Text style={[styles.explicacion, styles.negrita]}>
               Esto no se puede deshacer.
@@ -216,6 +217,7 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
               editable={!eliminando}
             />
 
+            <CampoFormulario etiqueta="Escribe ELIMINAR para confirmar" value={frase} onChangeText={setFrase} autoCapitalize="characters" autoCorrect={false} editable={!eliminando} />
             {/* "Cancelar" es el botón más grande y visible */}
             <TouchableOpacity
               style={[styles.botonCancelar, eliminando && styles.botonDeshabilitado]}
@@ -228,9 +230,10 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.botonEliminar, eliminando && styles.botonDeshabilitado]}
+              style={[styles.botonEliminar, !puedeEliminar && styles.botonDeshabilitado]}
               onPress={eliminar}
-              disabled={eliminando}
+              disabled={!puedeEliminar}
+              accessibilityState={{ disabled: !puedeEliminar }}
               accessibilityRole="button"
               accessibilityLabel="Eliminar mi cuenta para siempre"
             >

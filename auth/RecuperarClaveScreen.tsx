@@ -1,3 +1,5 @@
+import Encabezado from "../perfil/Encabezado";
+import useRetroceso from "./useRetroceso";
 import { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -47,8 +49,17 @@ export default function RecuperarClaveScreen({ navigation }: any) {
   const [enviando, setEnviando] = useState(false);
   const [verificando, setVerificando] = useState(false);
 
+  const bloqueo = useRef(false);
+  function volver() {
+    if (bloqueo.current || enviando || verificando) return;
+    if (paso === 2) { setPaso(1); setCodigo(""); setErrorCodigo(""); setAviso(""); }
+    else navigation.goBack();
+  }
+  useRetroceso(volver);
+
   // Segundos que faltan para poder reenviar el código
   const [segundos, setSegundos] = useState(0);
+  const reenviarDesde = useRef(0);
 
   // (nuevo) useRef guarda una referencia al campo del código para poder
   // ponerle el cursor después de limpiarlo.
@@ -60,14 +71,13 @@ export default function RecuperarClaveScreen({ navigation }: any) {
   useEffect(() => {
     if (!contando) return;
     const intervalo = setInterval(() => {
-      setSegundos((anterior) => (anterior <= 1 ? 0 : anterior - 1));
+      setSegundos(Math.max(0, Math.ceil((reenviarDesde.current - Date.now()) / 1000)));
     }, 1000);
     return () => clearInterval(intervalo);
   }, [contando]);
 
   // (clase) Revisamos error.code para dar un mensaje claro, como en LoginScreen
   function mostrarError(error: AuthError) {
-    console.log(error.code, error.message);
 
     // (nuevo) Supabase no lanza el error cuando no hay internet: lo regresa
     // en { error } con este tipo especial.
@@ -113,6 +123,7 @@ export default function RecuperarClaveScreen({ navigation }: any) {
 
   // Manda el correo con el código. Regresa true si salió bien.
   async function mandarCorreo(correoLimpio: string): Promise<boolean> {
+    bloqueo.current = true;
     setEnviando(true);
     setAviso("");
     setMensajeExito("");
@@ -126,21 +137,22 @@ export default function RecuperarClaveScreen({ navigation }: any) {
         mostrarError(error);
         return false;
       }
+      reenviarDesde.current = Date.now() + SEGUNDOS_PARA_REENVIAR * 1000;
       setSegundos(SEGUNDOS_PARA_REENVIAR);
       return true;
-    } catch (e) {
-      console.log("Error al enviar el código", e);
+    } catch {
       setAviso(MENSAJE_SIN_CONEXION);
       return false;
     } finally {
       // (clase) El finally siempre corre: volvemos a habilitar los botones
+      bloqueo.current = false;
       setEnviando(false);
     }
   }
 
   // Paso 1: botón "Enviar código"
   async function enviarCodigo() {
-    if (enviando) return;
+    if (bloqueo.current || enviando || verificando) return;
     const limpio = revisarCorreo();
     if (limpio === null) return; // no llamamos a Supabase si el correo está mal
 
@@ -154,6 +166,7 @@ export default function RecuperarClaveScreen({ navigation }: any) {
 
   // Paso 1: link "Ya tengo un código". Pasa al paso 2 sin mandar otro correo.
   function yaTengoCodigo() {
+    if (bloqueo.current) return;
     const limpio = revisarCorreo();
     if (limpio === null) return;
     setAviso("");
@@ -165,7 +178,7 @@ export default function RecuperarClaveScreen({ navigation }: any) {
 
   // Paso 2: botón "Reenviar código"
   async function reenviarCodigo() {
-    if (enviando || segundos > 0) return;
+    if (bloqueo.current || enviando || verificando || segundos > 0) return;
     const salioBien = await mandarCorreo(correo);
     if (salioBien) {
       setCodigo("");
@@ -176,12 +189,13 @@ export default function RecuperarClaveScreen({ navigation }: any) {
 
   // Paso 2: revisa el código con Supabase
   async function verificarCodigo(codigoEscrito: string) {
-    if (verificando) return;
+    if (bloqueo.current || enviando || verificando) return;
     if (codigoEscrito.length !== LONGITUD_CODIGO) {
       setErrorCodigo(`El código tiene ${LONGITUD_CODIGO} números. Revisa que esté completo.`);
       return;
     }
 
+    bloqueo.current = true;
     setVerificando(true);
     setAviso("");
     setMensajeExito("");
@@ -198,10 +212,10 @@ export default function RecuperarClaveScreen({ navigation }: any) {
       }
       // Si salió bien NO navegamos a mano: useSession recibe el evento
       // PASSWORD_RECOVERY y App.tsx muestra la pantalla de nueva contraseña.
-    } catch (e) {
-      console.log("Error al verificar el código", e);
+    } catch {
       setAviso(MENSAJE_SIN_CONEXION);
     } finally {
+      bloqueo.current = false;
       setVerificando(false);
     }
   }
@@ -219,9 +233,11 @@ export default function RecuperarClaveScreen({ navigation }: any) {
 
   // Paso 2: link "¿No es tu correo? Cámbialo". El correo sigue escrito.
   function cambiarCorreo() {
+    if (bloqueo.current) return;
     setAviso("");
     setMensajeExito("");
     setErrorCodigo("");
+    setCodigo("");
     setPaso(1);
   }
 
@@ -232,6 +248,7 @@ export default function RecuperarClaveScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.pantalla}>
+      <Encabezado titulo="Recuperar clave" onVolver={volver} deshabilitado={enviando || verificando} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -394,6 +411,7 @@ const styles = StyleSheet.create({
   },
   contenido: {
     flexGrow: 1,
+    width: '100%', maxWidth: 640, alignSelf: 'center',
     padding: espaciado.lg,
   },
   indicadorPaso: {
@@ -438,7 +456,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonPrincipal: {
-    minHeight: 48,
+    minHeight: 56,
     backgroundColor: colors.botonPrincipal,
     borderRadius: radios.pill,
     paddingVertical: espaciado.md,
@@ -449,11 +467,12 @@ const styles = StyleSheet.create({
   },
   textoBotonPrincipal: {
     color: colors.textoSobreColor,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonSecundario: {
-    minHeight: 48,
+    minHeight: 56,
     borderWidth: 2,
     borderColor: colors.olivaOscuro,
     borderRadius: radios.pill,
@@ -465,14 +484,15 @@ const styles = StyleSheet.create({
   },
   textoBotonSecundario: {
     color: colors.olivaOscuro,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonDeshabilitado: {
     opacity: 0.5,
   },
   link: {
-    minHeight: 48,
+    minHeight: 56,
     alignItems: "center",
     justifyContent: "center",
     marginTop: espaciado.sm,

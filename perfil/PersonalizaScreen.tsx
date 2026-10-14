@@ -1,4 +1,10 @@
-import { useState } from "react";
+import useProteccionCapturas from "./useProteccionCapturas";
+import { usePreventRemove } from "@react-navigation/native";
+import useCocina from "./useCocina";
+import BloquesCocina from "./BloquesCocina";
+import Encabezado from "./Encabezado";
+import useRetroceso from "../auth/useRetroceso";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
@@ -17,6 +23,9 @@ import ListaAlergenos from "./ListaAlergenos";
 // mientras la sesión no tenga la marca "personalizo". No es obligatoria.
 // (clase) Componente declarado como función y navigation que recibe de React Navigation
 export default function PersonalizaScreen({ navigation }: any) {
+  useProteccionCapturas("personaliza");
+  const cocina = useCocina();
+  const bloqueo = useRef(false);
   const preferencias = usePreferencias();
   const {
     alergenos,
@@ -26,19 +35,29 @@ export default function PersonalizaScreen({ navigation }: any) {
     alternarPropia,
     hogar,
     alternarHogar,
-    cargando,
-    errorCarga,
-    recargar,
+    cargando: cargaAlergias,
+    errorCarga: errorAlergias,
+    recargar: recargarAlergias,
     guardar,
   } = preferencias;
 
+  const cargando = cargaAlergias || cocina.cargando;
+  const errorCarga = errorAlergias || cocina.error;
+  const recargar = () => { if (errorAlergias) recargarAlergias(); if (cocina.error) cocina.recargar(); };
   // (clase) Un useState por cada dato de la pantalla
   const [paso, setPaso] = useState(1);
   const [aviso, setAviso] = useState("");
   const [ocupado, setOcupado] = useState(false); // guardando o marcando
 
+  const [terminado, setTerminado] = useState(false);
+  usePreventRemove(ocupado && !terminado, () => {});
+  // (nuevo) Navegar después del render que libera la protección de salida.
+  useEffect(() => { if (terminado) navigation.goBack(); }, [terminado, navigation]);
+  useRetroceso(() => { if (!bloqueo.current && !ocupado) { if (paso > 1) setPaso(paso - 1); else navigation.goBack(); } });
+
   // Si vive sola o solo, no se pregunta por las alergias del hogar
-  const totalPasos = personas === 1 ? 2 : 3;
+  const pasoCocina = personas === 1 ? 3 : 4;
+  const totalPasos = pasoCocina;
   const esUltimoPaso = paso === totalPasos;
 
   // (nuevo) Guarda la marca "personalizo" en los datos del usuario.
@@ -48,7 +67,6 @@ export default function PersonalizaScreen({ navigation }: any) {
   async function marcarPersonalizado(): Promise<boolean> {
     const { error } = await supabase.auth.updateUser({ data: { personalizo: true } });
     if (error) {
-      console.log(error.code, error.message);
       // (nuevo) Sin internet, Supabase regresa este tipo de error en vez de lanzarlo
       setAviso(isAuthRetryableFetchError(error) ? MENSAJE_SIN_CONEXION : MENSAJE_ERROR_GUARDAR);
       return false;
@@ -61,7 +79,8 @@ export default function PersonalizaScreen({ navigation }: any) {
   // La selección se conserva para poder tocar "Terminar" otra vez.
   // Si todo sale bien, regresa a la Home.
   async function terminar(propiasElegidas: Set<number> = propias, hogarElegido: Set<number> = hogar) {
-    if (ocupado) return;
+    if (bloqueo.current || ocupado) return;
+    bloqueo.current = true;
     setOcupado(true);
     setAviso("");
 
@@ -69,15 +88,17 @@ export default function PersonalizaScreen({ navigation }: any) {
     try {
       const mensaje = await guardar(propiasElegidas, hogarElegido);
       if (mensaje !== null) {
-        setAviso(mensaje);
+        setAviso("No se completó el guardado. Algunos cambios pueden haberse guardado. Conservamos tu selección para reintentar. " + mensaje);
         return;
       }
+      const errorCocina = await cocina.guardar();
+      if (errorCocina) { setAviso(errorCocina); return; }
       const marcado = await marcarPersonalizado();
-      if (marcado) navigation.goBack();
-    } catch (e) {
-      console.log("Error al terminar Personaliza", e);
+      if (marcado) setTerminado(true);
+    } catch {
       setAviso(MENSAJE_SIN_CONEXION);
     } finally {
+      bloqueo.current = false;
       setOcupado(false);
     }
   }
@@ -85,17 +106,19 @@ export default function PersonalizaScreen({ navigation }: any) {
   // "Hacerlo después": regresa a la Home sin guardar nada. La tarjeta sigue
   // ahí para contestar después; "Ahora no" en la tarjeta la esconde.
   function hacerloDespues() {
-    if (ocupado) return;
+    if (bloqueo.current || ocupado) return;
     navigation.goBack();
   }
 
   function siguiente() {
+    if (bloqueo.current || ocupado) return;
     setAviso("");
     if (esUltimoPaso) terminar();
     else setPaso(paso + 1);
   }
 
   function atras() {
+    if (bloqueo.current) return;
     setAviso("");
     setPaso(paso - 1);
   }
@@ -104,6 +127,7 @@ export default function PersonalizaScreen({ navigation }: any) {
   // limpia la selección de ese paso y avanza. Si es el último paso, termina,
   // pasando la selección vacía porque el estado nuevo aún no estaría listo.
   function ningunaAlergia() {
+    if (bloqueo.current || ocupado) return;
     const vacio = new Set<number>();
     if (paso === 2) {
       preferencias.limpiarPropias();
@@ -111,7 +135,7 @@ export default function PersonalizaScreen({ navigation }: any) {
       else setPaso(3);
     } else {
       preferencias.limpiarHogar();
-      terminar(propias, vacio);
+      setPaso(pasoCocina);
     }
   }
 
@@ -134,6 +158,7 @@ export default function PersonalizaScreen({ navigation }: any) {
   if (cargando) {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+      <Encabezado titulo="Personaliza" onVolver={() => { if (paso > 1) atras(); else hacerloDespues(); }} deshabilitado={ocupado} />
         <VistaCargando mensaje="Cargando…" />
       </SafeAreaView>
     );
@@ -142,6 +167,7 @@ export default function PersonalizaScreen({ navigation }: any) {
   if (errorCarga !== "") {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+      <Encabezado titulo="Personaliza" onVolver={() => { if (paso > 1) atras(); else hacerloDespues(); }} deshabilitado={ocupado} />
         <View style={styles.contenido}>
           <View style={styles.aviso} accessibilityLiveRegion="polite">
             <Text style={styles.textoAviso}>{errorCarga}</Text>
@@ -171,11 +197,12 @@ export default function PersonalizaScreen({ navigation }: any) {
 
   let textoNinguna = "";
   if (paso === 2) textoNinguna = esUltimoPaso ? "No tengo alergias, terminar" : "No tengo alergias";
-  if (paso === 3) textoNinguna = "Nadie más tiene alergias, terminar";
+  if (paso === 3 && personas > 1) textoNinguna = "Nadie más tiene alergias";
   if (ocupado && esUltimoPaso) textoNinguna = "Guardando…";
 
   return (
     <SafeAreaView style={styles.pantalla} edges={["top"]}>
+      <Encabezado titulo="Personaliza" onVolver={() => { if (paso > 1) atras(); else hacerloDespues(); }} deshabilitado={ocupado} />
       <ScrollView contentContainerStyle={styles.contenido}>
         <Text style={styles.indicadorPaso}>
           Paso {paso} de {totalPasos}
@@ -211,7 +238,7 @@ export default function PersonalizaScreen({ navigation }: any) {
           </>
         )}
 
-        {paso === 3 && (
+        {paso === 3 && personas > 1 && (
           <>
             <Text style={styles.pregunta} accessibilityRole="header">
               ¿Alguien más en tu casa tiene alergias?
@@ -222,7 +249,7 @@ export default function PersonalizaScreen({ navigation }: any) {
           </>
         )}
 
-        {paso >= 2 && (
+        {paso >= 2 && paso < pasoCocina && (
           <>
             <TouchableOpacity
               style={[styles.botonSecundario, ocupado && styles.botonDeshabilitado]}
@@ -245,6 +272,8 @@ export default function PersonalizaScreen({ navigation }: any) {
           </>
         )}
 
+        {paso === 2 && <BloquesCocina cocina={cocina} deshabilitado={ocupado} solo="gustos" />}
+        {paso === pasoCocina && <BloquesCocina cocina={cocina} deshabilitado={ocupado} solo="cocina" />}
         <TouchableOpacity
           style={[styles.botonPrincipal, ocupado && styles.botonDeshabilitado]}
           onPress={siguiente}
@@ -255,17 +284,7 @@ export default function PersonalizaScreen({ navigation }: any) {
           <Text style={styles.textoBotonPrincipal}>{textoPrincipal}</Text>
         </TouchableOpacity>
 
-        {paso > 1 && (
-          <TouchableOpacity
-            style={[styles.botonSecundario, ocupado && styles.botonDeshabilitado]}
-            onPress={atras}
-            disabled={ocupado}
-            accessibilityRole="button"
-            accessibilityLabel="Atrás"
-          >
-            <Text style={styles.textoBotonSecundario}>Atrás</Text>
-          </TouchableOpacity>
-        )}
+
 
         {salida}
       </ScrollView>
@@ -281,6 +300,7 @@ const styles = StyleSheet.create({
   },
   contenido: {
     flexGrow: 1,
+    width: '100%', maxWidth: 640, alignSelf: 'center',
     padding: espaciado.lg,
   },
   indicadorPaso: {
@@ -314,7 +334,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonPrincipal: {
-    minHeight: 48,
+    minHeight: 56,
     backgroundColor: colors.botonPrincipal,
     borderRadius: radios.pill,
     paddingVertical: espaciado.md,
@@ -325,11 +345,12 @@ const styles = StyleSheet.create({
   },
   textoBotonPrincipal: {
     color: colors.textoSobreColor,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonSecundario: {
-    minHeight: 48,
+    minHeight: 56,
     borderWidth: 2,
     borderColor: colors.olivaOscuro,
     borderRadius: radios.pill,
@@ -341,14 +362,15 @@ const styles = StyleSheet.create({
   },
   textoBotonSecundario: {
     color: colors.olivaOscuro,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonDeshabilitado: {
     opacity: 0.5,
   },
   link: {
-    minHeight: 48,
+    minHeight: 56,
     alignItems: "center",
     justifyContent: "center",
     marginTop: espaciado.md,

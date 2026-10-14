@@ -7,6 +7,7 @@
 // Si se cambian allá, hay que cambiarlos aquí también.
 export const LONGITUD_CODIGO = 8; // cuántos números trae el código del correo
 export const MINUTOS_CODIGO = 60; // cuánto dura el código (3600 segundos)
+export const AYUDA_CONTRASENA = "Mínimo 8 caracteres, una letra y un número.";
 export const MINIMO_CONTRASENA = 8; // largo mínimo de contraseña
 
 // Quita los espacios del principio y del final y pasa todo a minúsculas.
@@ -47,11 +48,23 @@ export function validarNuevaContrasena(
   if (nueva === "") {
     return { campo: "nueva", mensaje: "Escribe tu nueva contraseña." };
   }
-  if (nueva.length < MINIMO_CONTRASENA) {
+  // (nuevo) Contar caracteres Unicode, sin recortar ni copiar la contraseña.
+  let longitud = 0;
+  let tieneLetra = false;
+  let tieneNumero = false;
+  for (const caracter of nueva) {
+    longitud++;
+    tieneLetra ||= /\p{L}/u.test(caracter);
+    tieneNumero ||= /[0-9]/.test(caracter);
+  }
+  if (longitud < MINIMO_CONTRASENA) {
     return {
       campo: "nueva",
       mensaje: `La contraseña debe tener al menos ${MINIMO_CONTRASENA} caracteres.`,
     };
+  }
+  if (!tieneLetra || !tieneNumero) {
+    return { campo: "nueva", mensaje: AYUDA_CONTRASENA };
   }
   if (confirmacion === "") {
     return { campo: "confirmacion", mensaje: "Escribe otra vez tu nueva contraseña." };

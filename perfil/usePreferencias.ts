@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { Alergeno } from "../types/database";
 import { calcularCambios } from "./preferencias";
@@ -23,7 +23,6 @@ type Respuesta = {
 // o null si no hubo error.
 function revisarRespuesta(respuesta: Respuesta): string | null {
   if (respuesta.error === null) return null;
-  console.log(respuesta.error.code, respuesta.error.message);
   if (respuesta.status === 0) return MENSAJE_SIN_CONEXION;
   return MENSAJE_ERROR_GUARDAR;
 }
@@ -38,15 +37,16 @@ function revisarRespuesta(respuesta: Respuesta): string | null {
 async function guardarAlergias(
   tabla: "usuario_alergias" | "hogar_alergias",
   guardados: Set<number>,
-  seleccionados: Set<number>
+  seleccionados: Set<number>,
+  usuarioId: string
 ): Promise<string | null> {
   const { agregar, quitar } = calcularCambios(guardados, seleccionados);
 
   if (agregar.length > 0) {
-    // Solo mandamos alergeno_id: el servidor pone usuario_id con auth.uid().
+    // (nuevo) Filtramos por la cuenta cargada; RLS comprueba el usuario autenticado.
     // ignoreDuplicates: si una ya existía (por ejemplo, en un reintento),
     // se ignora sin error.
-    const filas = agregar.map((id) => ({ alergeno_id: id }));
+    const filas = agregar.map((id) => ({ usuario_id: usuarioId, alergeno_id: id }));
     const respuesta = await supabase
       .from(tabla)
       .upsert(filas, { onConflict: "usuario_id,alergeno_id", ignoreDuplicates: true });
@@ -55,13 +55,19 @@ async function guardarAlergias(
   }
 
   if (quitar.length > 0) {
-    // (nuevo) No filtramos por usuario_id: las políticas RLS ("Solo el
-    // dueño") hacen que solo se puedan borrar las filas propias.
-    const respuesta = await supabase.from(tabla).delete().in("alergeno_id", quitar);
+    // (nuevo) Filtro explícito por usuario además de las políticas RLS.
+    const respuesta = await supabase.from(tabla).delete().eq("usuario_id", usuarioId).in("alergeno_id", quitar);
     const mensaje = revisarRespuesta(respuesta);
     if (mensaje !== null) return mensaje;
   }
 
+  if (agregar.length || quitar.length) {
+    const verificacion = await supabase.from(tabla).select('alergeno_id').eq('usuario_id', usuarioId);
+    const mensaje = revisarRespuesta(verificacion);
+    if (mensaje) return mensaje;
+    const actuales = new Set<number>((verificacion.data ?? []).map(f => f.alergeno_id));
+    if (actuales.size !== seleccionados.size || [...seleccionados].some(id => !actuales.has(id))) return MENSAJE_CERO_FILAS;
+  }
   return null;
 }
 
@@ -88,6 +94,7 @@ export default function usePreferencias() {
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const bloqueo = useRef(false);
 
   // (clase) useEffect con [] para cargar una sola vez al abrir la pantalla
   useEffect(() => {
@@ -113,8 +120,8 @@ export default function usePreferencias() {
       // a que terminen todas. Es más rápido que hacerlas una por una.
       const [resAlergenos, resPropias, resHogar, resPerfil] = await Promise.all([
         supabase.from("alergenos").select("id, nombre").order("id"),
-        supabase.from("usuario_alergias").select("alergeno_id"),
-        supabase.from("hogar_alergias").select("alergeno_id"),
+        supabase.from("usuario_alergias").select("alergeno_id").eq("usuario_id", id),
+        supabase.from("hogar_alergias").select("alergeno_id").eq("usuario_id", id),
         supabase.from("perfiles").select("personas_hogar").eq("id", id).single(),
       ]);
 
@@ -122,11 +129,10 @@ export default function usePreferencias() {
       let huboError = false;
       for (const error of errores) {
         if (error) {
-          console.log(error.code, error.message);
           huboError = true;
         }
       }
-      if (huboError) {
+      if (huboError || !resAlergenos.data?.length) {
         setErrorCarga(MENSAJE_ERROR_CARGA);
         return;
       }
@@ -146,8 +152,7 @@ export default function usePreferencias() {
       setHogarGuardadas(idsHogar);
       setPersonas(numeroPersonas);
       setPersonasGuardadas(numeroPersonas);
-    } catch (e) {
-      console.log("Error al cargar las preferencias", e);
+    } catch {
       setErrorCarga(MENSAJE_ERROR_CARGA);
     } finally {
       setCargando(false);
@@ -201,13 +206,18 @@ export default function usePreferencias() {
   // el estado nuevo de React todavía no estaría listo en esta llamada.
   async function guardar(
     propiasElegidas: Set<number> = propias,
-    hogarElegido: Set<number> = hogar
+    hogarElegido: Set<number> = hogar,
+    bloque: "restricciones" | "hogar" | "todos" = "todos"
   ): Promise<string | null> {
+    if (bloqueo.current || cargando || errorCarga || !usuarioId) return MENSAJE_ERROR_GUARDAR;
+    bloqueo.current = true;
     const hogarParaGuardar = hogarSegunPersonas(hogarElegido);
     setGuardando(true);
     try {
+      const { data: sesion } = await supabase.auth.getSession();
+      if (sesion.session?.user.id !== usuarioId) return MENSAJE_ERROR_GUARDAR;
       // 1. Personas en la casa, solo si cambió
-      if (personas !== personasGuardadas) {
+      if (bloque !== "restricciones" && personas !== personasGuardadas) {
         // (nuevo) .select() regresa las filas que se actualizaron. Si regresa
         // cero, RLS no encontró la fila aunque no mande error.
         const respuesta = await supabase
@@ -218,37 +228,40 @@ export default function usePreferencias() {
         const mensaje = revisarRespuesta(respuesta);
         if (mensaje !== null) return mensaje;
         if (respuesta.data === null || respuesta.data.length === 0) {
-          console.log("update de perfiles regresó cero filas");
           return MENSAJE_CERO_FILAS;
         }
         setPersonasGuardadas(personas);
       }
 
+      if (bloque !== "hogar") {
       // 2. Alergias propias
       const mensajePropias = await guardarAlergias(
         "usuario_alergias",
         propiasGuardadas,
-        propiasElegidas
+        propiasElegidas, usuarioId
       );
       if (mensajePropias !== null) return mensajePropias;
       setPropiasGuardadas(new Set(propiasElegidas));
       setPropias(new Set(propiasElegidas));
 
+      }
+      if (bloque !== "restricciones") {
       // 3. Alergias del hogar (vacías si vive sola o solo)
       const mensajeHogar = await guardarAlergias(
         "hogar_alergias",
         hogarGuardadas,
-        hogarParaGuardar
+        hogarParaGuardar, usuarioId
       );
       if (mensajeHogar !== null) return mensajeHogar;
       setHogarGuardadas(new Set(hogarParaGuardar));
       setHogar(new Set(hogarParaGuardar));
+      }
 
       return null;
-    } catch (e) {
-      console.log("Error al guardar las preferencias", e);
+    } catch {
       return MENSAJE_SIN_CONEXION;
     } finally {
+      bloqueo.current = false;
       setGuardando(false);
     }
   }

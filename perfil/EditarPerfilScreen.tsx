@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import useSession from "../auth/useSession";
+import Encabezado from "./Encabezado";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -35,6 +37,8 @@ import {
 // EditarPerfilScreen: cambia el alias y el nombre.
 // (clase) Componente declarado como función y navigation que recibe de React Navigation
 export default function EditarPerfilScreen({ navigation }: any) {
+  const { session } = useSession();
+  const bloqueo = useRef(false);
   const { perfil, error: errorPerfil, recargar } = useUserProfile();
 
   // (clase) Un useState por cada campo y cada mensaje
@@ -53,22 +57,22 @@ export default function EditarPerfilScreen({ navigation }: any) {
   // (nuevo) useRef para pasar al campo de abajo con la tecla "siguiente"
   const campoNombre = useRef<TextInput>(null);
 
-  // Cuando llega el perfil, llenamos los campos con los valores actuales
-  useEffect(() => {
-    if (perfil !== null) {
-      setAlias(perfil.alias);
-      setNombre(perfil.nombre);
-      setAliasGuardado(perfil.alias);
-      setNombreGuardado(perfil.nombre);
-    }
-  }, [perfil]);
+  // (nuevo) Ajustar al cambiar de cuenta, sin sobrescribir el borrador en recargas.
+  const [cuentaInicializada, setCuentaInicializada] = useState<string | null>(null);
+  if (perfil !== null && cuentaInicializada !== perfil.id) {
+    setCuentaInicializada(perfil.id);
+    setAlias(perfil.alias); setNombre(perfil.nombre);
+    setAliasGuardado(perfil.alias); setNombreGuardado(perfil.nombre);
+    setListo(false); setAviso(""); setErrorAlias(""); setErrorNombre("");
+  }
 
   const hayCambios =
     perfil !== null && (alias.trim() !== aliasGuardado || nombre.trim() !== nombreGuardado);
 
   // (nuevo) usePreventRemove detiene la salida (botón "atrás", gesto o
   // goBack) mientras haya cambios sin guardar, y pregunta antes de salir.
-  usePreventRemove(hayCambios, ({ data }) => {
+  usePreventRemove(hayCambios || guardando, ({ data }) => {
+    if (guardando) return;
     Alert.alert("¿Salir sin guardar los cambios?", "Si sales ahora, se perderán.", [
       { text: "Quedarme", style: "cancel" },
       {
@@ -80,7 +84,7 @@ export default function EditarPerfilScreen({ navigation }: any) {
   });
 
   async function guardar() {
-    if (guardando || !hayCambios || perfil === null) return;
+    if (bloqueo.current || guardando || !hayCambios || perfil === null) return;
 
     // (clase) Validaciones en el celular antes de llamar al servidor
     const aliasLimpio = alias.trim();
@@ -97,6 +101,7 @@ export default function EditarPerfilScreen({ navigation }: any) {
     if (aliasLimpio !== aliasGuardado) cambios.alias = aliasLimpio;
     if (nombreLimpio !== nombreGuardado) cambios.nombre = nombreLimpio;
 
+    bloqueo.current = true;
     setGuardando(true);
 
     // (clase) async/await con try/catch/finally para "fail gracefully"
@@ -104,6 +109,8 @@ export default function EditarPerfilScreen({ navigation }: any) {
       // (nuevo) perfil.id es el id de la sesión (useUserProfile lo busca así).
       // .select() regresa las filas actualizadas: si son cero, RLS no
       // encontró la fila aunque Supabase no mande error.
+      const { data: sesionActual } = await supabase.auth.getSession();
+      if (sesionActual.session?.user.id !== perfil.id) { setAviso("La sesión cambió. Vuelve a abrir tu perfil."); return; }
       const { data, error, status } = await supabase
         .from("perfiles")
         .update(cambios)
@@ -111,13 +118,11 @@ export default function EditarPerfilScreen({ navigation }: any) {
         .select("id");
 
       if (error) {
-        console.log(error.code, error.message);
         // (nuevo) status 0: no hubo respuesta del servidor (sin internet)
         setAviso(status === 0 ? MENSAJE_SIN_CONEXION : MENSAJE_ERROR_GUARDAR);
         return;
       }
       if (data === null || data.length === 0) {
-        console.log("update de perfiles regresó cero filas");
         setAviso(MENSAJE_CERO_FILAS);
         return;
       }
@@ -127,10 +132,10 @@ export default function EditarPerfilScreen({ navigation }: any) {
       setAliasGuardado(aliasLimpio);
       setNombreGuardado(nombreLimpio);
       setListo(true);
-    } catch (e) {
-      console.log("Error al guardar el perfil", e);
+    } catch {
       setAviso(MENSAJE_SIN_CONEXION);
     } finally {
+      bloqueo.current = false;
       setGuardando(false);
     }
   }
@@ -139,6 +144,7 @@ export default function EditarPerfilScreen({ navigation }: any) {
   if (listo) {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo="Editar perfil" onVolver={() => navigation.goBack()} deshabilitado={guardando} />
         <View style={styles.contenido}>
           <Text style={styles.titulo} accessibilityRole="header">
             Tus datos se guardaron
@@ -160,6 +166,7 @@ export default function EditarPerfilScreen({ navigation }: any) {
   if (perfil === null) {
     return (
       <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo="Editar perfil" onVolver={() => navigation.goBack()} deshabilitado={guardando} />
         {errorPerfil === null ? (
           <VistaCargando mensaje="Cargando tus datos…" />
         ) : (
@@ -193,6 +200,7 @@ export default function EditarPerfilScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.pantalla} edges={["top"]}>
+        <Encabezado titulo="Editar perfil" onVolver={() => navigation.goBack()} deshabilitado={guardando} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -201,9 +209,7 @@ export default function EditarPerfilScreen({ navigation }: any) {
           contentContainerStyle={styles.contenido}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.titulo} accessibilityRole="header">
-            Editar perfil
-          </Text>
+          
 
           {/* (nuevo) Aviso general arriba del formulario, en vez de alert() */}
           {aviso !== "" && (
@@ -212,9 +218,10 @@ export default function EditarPerfilScreen({ navigation }: any) {
             </View>
           )}
 
+          <CampoFormulario etiqueta="Correo" value={session?.user.email ?? ""} editable={false} ayuda="El cambio de correo todavía no está disponible." />
           <CampoFormulario
             etiqueta="Alias"
-            ayuda={`De ${ALIAS_MIN} a ${ALIAS_MAX} letras. Es el nombre que verán los demás.`}
+            ayuda={`De ${ALIAS_MIN} a ${ALIAS_MAX} caracteres. Es el nombre que verán los demás.`}
             value={alias}
             onChangeText={(texto) => {
               setAlias(texto);
@@ -233,7 +240,7 @@ export default function EditarPerfilScreen({ navigation }: any) {
           <CampoFormulario
             ref={campoNombre}
             etiqueta="Nombre"
-            ayuda={`De ${NOMBRE_MIN} a ${NOMBRE_MAX} letras. Solo tú puedes verlo.`}
+            ayuda={`De ${NOMBRE_MIN} a ${NOMBRE_MAX} caracteres. Solo tú puedes verlo.`}
             value={nombre}
             onChangeText={(texto) => {
               setNombre(texto);
@@ -288,6 +295,7 @@ const styles = StyleSheet.create({
   },
   contenido: {
     flexGrow: 1,
+    width: '100%', maxWidth: 640, alignSelf: 'center',
     padding: espaciado.lg,
   },
   titulo: {
@@ -307,7 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonPrincipal: {
-    minHeight: 48,
+    minHeight: 56,
     backgroundColor: colors.botonPrincipal,
     borderRadius: radios.pill,
     paddingVertical: espaciado.md,
@@ -318,11 +326,12 @@ const styles = StyleSheet.create({
   },
   textoBotonPrincipal: {
     color: colors.textoSobreColor,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonSecundario: {
-    minHeight: 48,
+    minHeight: 56,
     borderWidth: 2,
     borderColor: colors.olivaOscuro,
     borderRadius: radios.pill,
@@ -334,7 +343,8 @@ const styles = StyleSheet.create({
   },
   textoBotonSecundario: {
     color: colors.olivaOscuro,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 25, textAlign: "center",
     fontWeight: "700",
   },
   botonDeshabilitado: {
