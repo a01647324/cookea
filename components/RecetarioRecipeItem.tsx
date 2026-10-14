@@ -44,6 +44,8 @@ interface Props {
   onColeccion: (
     receta: RecetaResumen
   ) => void;
+
+  onSemana: (receta: RecetaResumen) => void;
 }
 
 
@@ -52,6 +54,7 @@ export function RecetarioRecipeItem({
   colorFondo,
   onAbrir,
   onColeccion,
+  onSemana,
 }: Props) {
 
   const {
@@ -216,6 +219,22 @@ export function RecetarioRecipeItem({
             Colección
           </Text>
 
+        </Pressable>
+
+        {/** SEMANA */}
+        <Pressable
+        style={estilos.accion}
+        onPress={() => onSemana(receta)}
+        >
+        <Ionicons
+            name="calendar-outline"
+            size={20}
+            color={colors.olivaOscuro}
+        />
+
+        <Text style={estilos.textoAccion}>
+            Semana
+        </Text>
         </Pressable>
 
       </View>
