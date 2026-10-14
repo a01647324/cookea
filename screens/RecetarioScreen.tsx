@@ -19,7 +19,17 @@ import { VistaCargando, VistaError, VistaVacia } from '../components/StateViews'
 import { colors, coloresTarjetaReceta, espaciado, tipografia, radios } from '../theme/theme';
 import { RecetarioRecipeItem } from '../components/RecetarioRecipeItem';
 import { useAlbums } from '../hooks/useAlbums';
-import { RecetaResumen } from '../types/database';
+import {
+  MomentoComida,
+  RecetaResumen,
+} from '../types/database';
+import {
+  formatearFechaLocal,
+  inicioDeSemana,
+  sumarDias,
+  useWeeklyPlanner,
+} from '../hooks/useWeeklyPlanner';
+
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -94,6 +104,124 @@ export function RecetarioScreen() {
 
     return resultado;
   }, [recetas, tiempoMaximo, orden]);
+
+  const [recetaParaSemana, setRecetaParaSemana] =
+  useState<RecetaResumen | null>(null);
+
+  const [diaSeleccionado, setDiaSeleccionado] =
+  useState<string | null>(null);
+
+  const [momentoSeleccionado, setMomentoSeleccionado] =
+    useState<MomentoComida | null>(null);
+
+  const [guardandoSemana, setGuardandoSemana] =
+    useState(false);
+
+  const fechaReferencia = new Date();
+
+  const {
+    guardarReceta,
+    error: errorSemana,
+  } = useWeeklyPlanner(fechaReferencia);
+
+  const inicioSemana =
+  inicioDeSemana(fechaReferencia);
+
+const nombresDias = [
+  'Lun',
+  'Mar',
+  'Mié',
+  'Jue',
+  'Vie',
+  'Sáb',
+  'Dom',
+];
+
+const diasSemana =
+  nombresDias.map(
+    (nombre, index) => {
+      const fecha =
+        sumarDias(
+          inicioSemana,
+          index
+        );
+
+      return {
+        nombre,
+        fecha:
+          formatearFechaLocal(fecha),
+        numero:
+          fecha.getDate(),
+      };
+    }
+  );
+
+  const momentos: {
+    valor: MomentoComida;
+    texto: string;
+    icono: keyof typeof Ionicons.glyphMap;
+  }[] = [
+    {
+      valor: 'desayuno',
+      texto: 'Desayuno',
+      icono: 'sunny-outline',
+    },
+    {
+      valor: 'comida',
+      texto: 'Comida',
+      icono: 'restaurant-outline',
+    },
+    {
+      valor: 'cena',
+      texto: 'Cena',
+      icono: 'moon-outline',
+    },
+    {
+      valor: 'bebida',
+      texto: 'Bebida',
+      icono: 'cafe-outline',
+    },
+  ];
+
+  async function agregarAMiSemana() {
+    if (
+      !recetaParaSemana ||
+      !diaSeleccionado ||
+      !momentoSeleccionado
+    ) {
+      Alert.alert(
+        'Faltan datos',
+        'Selecciona un día y un momento.'
+      );
+  
+      return;
+    }
+  
+    setGuardandoSemana(true);
+  
+    const ok =
+      await guardarReceta(
+        diaSeleccionado,
+        momentoSeleccionado,
+        recetaParaSemana.id
+      );
+  
+    setGuardandoSemana(false);
+  
+    if (ok) {
+      const nombreReceta =
+        recetaParaSemana.nombre;
+  
+      setRecetaParaSemana(null);
+      setDiaSeleccionado(null);
+      setMomentoSeleccionado(null);
+  
+      Alert.alert(
+        'Agregada a tu semana',
+        `${nombreReceta} se agregó a tu plan semanal.`
+      );
+    }
+  }
 
   async function guardarEnColeccion(
     albumId: number
@@ -311,6 +439,12 @@ export function RecetarioScreen() {
                   receta
                 )
               }
+
+              onSemana={(receta) => {
+                setRecetaParaSemana(receta);
+                setDiaSeleccionado(null);
+                setMomentoSeleccionado(null);
+              }}
           
             />
           )}
@@ -619,6 +753,207 @@ export function RecetarioScreen() {
 
   </View>
 
+</Modal>
+<Modal
+  visible={recetaParaSemana !== null}
+  transparent
+  animationType="fade"
+  onRequestClose={() =>
+    setRecetaParaSemana(null)
+  }
+>
+  <View style={estilos.modalFondo}>
+
+    <View style={estilos.modalTarjeta}>
+
+      <View style={estilos.modalHeader}>
+        <View>
+          <Text style={tipografia.subtitulo}>
+            Agregar a mi semana
+          </Text>
+
+          {recetaParaSemana && (
+            <Text
+              style={
+                estilos.nombreRecetaModal
+              }
+            >
+              {recetaParaSemana.nombre}
+            </Text>
+          )}
+        </View>
+
+        <Pressable
+          style={estilos.cerrarModal}
+          onPress={() =>
+            setRecetaParaSemana(null)
+          }
+        >
+          <Ionicons
+            name="close"
+            size={24}
+            color={colors.textoPrincipal}
+          />
+        </Pressable>
+      </View>
+
+
+      <Text style={estilos.tituloSeccionSemana}>
+        Elige un día
+      </Text>
+
+      <View style={estilos.diasSemana}>
+        {diasSemana.map((dia) => {
+
+          const activo =
+            diaSeleccionado ===
+            dia.fecha;
+
+          return (
+            <Pressable
+              key={dia.fecha}
+              style={[
+                estilos.diaSemana,
+                activo &&
+                  estilos.diaSemanaActivo,
+              ]}
+              onPress={() =>
+                setDiaSeleccionado(
+                  dia.fecha
+                )
+              }
+            >
+              <Text
+                style={[
+                  estilos.nombreDiaSemana,
+                  activo &&
+                    estilos.textoDiaActivo,
+                ]}
+              >
+                {dia.nombre}
+              </Text>
+
+              <Text
+                style={[
+                  estilos.numeroDiaSemana,
+                  activo &&
+                    estilos.textoDiaActivo,
+                ]}
+              >
+                {dia.numero}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+
+      <Text style={estilos.tituloSeccionSemana}>
+        Momento
+      </Text>
+
+      <View style={estilos.momentosSemana}>
+
+        {momentos.map((momento) => {
+
+          const activo =
+            momentoSeleccionado ===
+            momento.valor;
+
+          return (
+            <Pressable
+              key={momento.valor}
+              style={[
+                estilos.momentoSemana,
+                activo &&
+                  estilos.momentoSemanaActivo,
+              ]}
+              onPress={() =>
+                setMomentoSeleccionado(
+                  momento.valor
+                )
+              }
+            >
+              <Ionicons
+                name={momento.icono}
+                size={20}
+                color={
+                  activo
+                    ? colors.textoSobreColor
+                    : colors.olivaOscuro
+                }
+              />
+
+              <Text
+                style={[
+                  estilos.textoMomentoSemana,
+                  activo &&
+                    estilos.textoMomentoActivo,
+                ]}
+              >
+                {momento.texto}
+              </Text>
+            </Pressable>
+          );
+        })}
+
+      </View>
+
+
+      {errorSemana && (
+        <Text style={estilos.errorModal}>
+          {errorSemana}
+        </Text>
+      )}
+
+
+      <Pressable
+        disabled={
+          !diaSeleccionado ||
+          !momentoSeleccionado ||
+          guardandoSemana
+        }
+        style={[
+          estilos.botonAgregarSemana,
+          (
+            !diaSeleccionado ||
+            !momentoSeleccionado ||
+            guardandoSemana
+          ) &&
+            estilos.botonAgregarSemanaDesactivado,
+        ]}
+        onPress={() =>
+          void agregarAMiSemana()
+        }
+      >
+        {guardandoSemana ? (
+          <ActivityIndicator
+            color={colors.textoSobreColor}
+          />
+        ) : (
+          <>
+            <Ionicons
+              name="calendar"
+              size={19}
+              color={
+                colors.textoSobreColor
+              }
+            />
+
+            <Text
+              style={
+                estilos.textoAgregarSemana
+              }
+            >
+              Agregar a mi semana
+            </Text>
+          </>
+        )}
+      </Pressable>
+
+    </View>
+
+  </View>
 </Modal>
     </SafeAreaView>
   );
@@ -936,5 +1271,108 @@ const estilos = StyleSheet.create({
   textoGuardarColeccion: {
     color: colors.textoSobreColor,
     fontWeight: '700',
+  },
+  tituloSeccionSemana: {
+    color: colors.textoPrincipal,
+    fontWeight: '700',
+    fontSize: 14,
+    marginBottom: espaciado.sm,
+    marginTop: espaciado.sm,
+  },
+  
+  diasSemana: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 4,
+    marginBottom: espaciado.md,
+  },
+  
+  diaSemana: {
+    flex: 1,
+    minHeight: 58,
+    borderWidth: 1,
+    borderColor: colors.borde,
+    borderRadius: radios.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  
+  diaSemanaActivo: {
+    backgroundColor: colors.oliva,
+    borderColor: colors.oliva,
+  },
+  
+  nombreDiaSemana: {
+    fontSize: 11,
+    color: colors.textoSecundario,
+    fontWeight: '600',
+  },
+  
+  numeroDiaSemana: {
+    fontSize: 16,
+    color: colors.textoPrincipal,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  
+  textoDiaActivo: {
+    color: colors.textoSobreColor,
+  },
+  
+  momentosSemana: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaciado.sm,
+    marginBottom: espaciado.md,
+  },
+  
+  momentoSemana: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: colors.borde,
+    borderRadius: radios.md,
+    backgroundColor: colors.background,
+  },
+  
+  momentoSemanaActivo: {
+    backgroundColor: colors.oliva,
+    borderColor: colors.oliva,
+  },
+  
+  textoMomentoSemana: {
+    fontSize: 13,
+    color: colors.olivaOscuro,
+    fontWeight: '600',
+  },
+  
+  textoMomentoActivo: {
+    color: colors.textoSobreColor,
+  },
+  
+  botonAgregarSemana: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: colors.oliva,
+    borderRadius: radios.md,
+    paddingVertical: 13,
+    marginTop: espaciado.sm,
+  },
+  
+  botonAgregarSemanaDesactivado: {
+    opacity: 0.45,
+  },
+  
+  textoAgregarSemana: {
+    color: colors.textoSobreColor,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
