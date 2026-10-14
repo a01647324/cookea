@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -10,9 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useRecipes } from '../hooks/useRecipes';
 import { SearchBar } from '../components/SearchBar';
-import { RecipeCard } from '../components/RecipeCard';
 import { VistaCargando, VistaError, VistaVacia } from '../components/StateViews';
-import { colors, coloresTarjetaReceta, espaciado, tipografia } from '../theme/theme';
+import { colors, coloresTarjetaReceta, espaciado, tipografia, radios } from '../theme/theme';
+import { RecetarioRecipeItem } from '../components/RecetarioRecipeItem';
+import { useAlbums } from '../hooks/useAlbums';
+import { RecetaResumen } from '../types/database';
+import { Ionicons } from '@expo/vector-icons';
 
 /**
  * RecetarioScreen
@@ -33,6 +40,27 @@ export function RecetarioScreen() {
 
   const [busqueda, setBusqueda] = useState<string>(route.params?.busquedaInicial ?? '');
   const { recetas, cargando, error, recargar } = useRecipes({ busqueda });
+  const {
+    albumes,
+    cargando: cargandoAlbumes,
+    error: errorAlbumes,
+    agregarRecetaAAlbum,
+  } = useAlbums();
+  
+  
+  const [
+    recetaParaColeccion,
+    setRecetaParaColeccion,
+  ] = useState<RecetaResumen | null>(
+    null
+  );
+  
+  
+  const coleccionesPropias =
+    albumes.filter(
+      album =>
+        album.tipo === 'propio'
+    );
 
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [tiempoMaximo, setTiempoMaximo] = useState<number | null>(null);
@@ -57,6 +85,34 @@ export function RecetarioScreen() {
 
     return resultado;
   }, [recetas, tiempoMaximo, orden]);
+
+  async function guardarEnColeccion(
+    albumId: number
+  ) {
+    if (!recetaParaColeccion) {
+      return;
+    }
+  
+    const ok =
+      await agregarRecetaAAlbum(
+        albumId,
+        recetaParaColeccion.id
+      );
+  
+    if (ok) {
+      const nombreReceta =
+        recetaParaColeccion.nombre;
+  
+      setRecetaParaColeccion(
+        null
+      );
+  
+      Alert.alert(
+        'Guardada',
+        `${nombreReceta} se agregó a tu colección.`
+      );
+    }
+  }
 
   return (
     <SafeAreaView style={estilos.pantalla} edges={['top']}>
@@ -172,24 +228,277 @@ export function RecetarioScreen() {
           keyExtractor={(receta) => String(receta.id)}
           contentContainerStyle={estilos.lista}
           renderItem={({ item, index }) => (
-            <RecipeCard
+            <RecetarioRecipeItem
+          
               receta={item}
-              variante="recetario"
+          
               colorFondo={
-                coloresTarjetaReceta[index % coloresTarjetaReceta.length]
+                coloresTarjetaReceta[
+                  index %
+                    coloresTarjetaReceta.length
+                ]
               }
-              onPress={() =>
-                navigation.navigate('RecetaDetalle', {
-                  recetaId: item.id,
-                })
+          
+              onAbrir={() =>
+                navigation.navigate(
+                  'RecetaDetalle',
+                  {
+                    recetaId: item.id,
+                  }
+                )
               }
+          
+              onColeccion={(
+                receta
+              ) =>
+                setRecetaParaColeccion(
+                  receta
+                )
+              }
+          
             />
           )}
         />
       )}
+      <Modal
+  visible={
+    recetaParaColeccion !==
+    null
+  }
+  transparent
+  animationType="fade"
+  onRequestClose={() =>
+    setRecetaParaColeccion(
+      null
+    )
+  }
+>
+
+  <View
+    style={
+      estilos.modalFondo
+    }
+  >
+
+    <View
+      style={
+        estilos.modalTarjeta
+      }
+    >
+
+      <View
+        style={
+          estilos.modalHeader
+        }
+      >
+
+        <View>
+
+          <Text
+            style={
+              tipografia.subtitulo
+            }
+          >
+            Agregar a colección
+          </Text>
+
+          {recetaParaColeccion && (
+
+            <Text
+              style={
+                estilos.nombreRecetaModal
+              }
+              numberOfLines={1}
+            >
+              {
+                recetaParaColeccion.nombre
+              }
+            </Text>
+
+          )}
+
+        </View>
+
+
+        <Pressable
+          style={
+            estilos.cerrarModal
+          }
+          onPress={() =>
+            setRecetaParaColeccion(
+              null
+            )
+          }
+        >
+
+          <Ionicons
+            name="close"
+            size={24}
+            color={
+              colors.textoPrincipal
+            }
+          />
+
+        </Pressable>
+
+      </View>
+
+
+      {cargandoAlbumes ? (
+
+        <ActivityIndicator
+          size="large"
+          color={
+            colors.oliva
+          }
+        />
+
+      ) : errorAlbumes ? (
+
+        <Text
+          style={
+            estilos.errorModal
+          }
+        >
+          {errorAlbumes}
+        </Text>
+
+      ) : coleccionesPropias.length ===
+        0 ? (
+
+        <View
+          style={
+            estilos.sinColecciones
+          }
+        >
+
+          <Ionicons
+            name="folder-open-outline"
+            size={36}
+            color={
+              colors.textoSecundario
+            }
+          />
+
+          <Text
+            style={
+              estilos.textoSinColecciones
+            }
+          >
+            Todavía no tienes
+            colecciones propias.
+          </Text>
+
+          <Text
+            style={
+              estilos.ayudaColeccion
+            }
+          >
+            Puedes crear una desde
+            Favoritos.
+          </Text>
+
+        </View>
+
+      ) : (
+
+        <ScrollView
+          style={
+            estilos.listaColecciones
+          }
+        >
+
+          {coleccionesPropias.map(
+            album => (
+
+              <Pressable
+                key={
+                  album.id
+                }
+                style={
+                  estilos.opcionColeccion
+                }
+                onPress={() =>
+                  void guardarEnColeccion(
+                    album.id
+                  )
+                }
+              >
+
+                <View
+                  style={
+                    estilos.iconoColeccion
+                  }
+                >
+
+                  <Ionicons
+                    name="folder"
+                    size={22}
+                    color={
+                      colors.terracota
+                    }
+                  />
+
+                </View>
+
+
+                <View
+                  style={
+                    estilos.infoColeccion
+                  }
+                >
+
+                  <Text
+                    style={
+                      estilos.nombreColeccion
+                    }
+                  >
+                    {album.nombre}
+                  </Text>
+
+                  <Text
+                    style={
+                      estilos.cantidadColeccion
+                    }
+                  >
+                    {
+                      album.cantidad_recetas
+                    }{' '}
+                    {album.cantidad_recetas ===
+                    1
+                      ? 'receta'
+                      : 'recetas'}
+                  </Text>
+
+                </View>
+
+
+                <Ionicons
+                  name="add-circle-outline"
+                  size={24}
+                  color={
+                    colors.oliva
+                  }
+                />
+
+              </Pressable>
+
+            )
+          )}
+
+        </ScrollView>
+
+      )}
+
+    </View>
+
+  </View>
+
+</Modal>
     </SafeAreaView>
   );
 }
+
 
 const estilos = StyleSheet.create({
   pantalla: {
@@ -274,5 +583,164 @@ const estilos = StyleSheet.create({
 
   textoChipActivo: {
     color: colors.surface,
+  },
+  modalFondo: {
+    flex: 1,
+    backgroundColor:
+      'rgba(0,0,0,0.40)',
+    justifyContent: 'center',
+    padding: espaciado.lg,
+  },
+  
+  modalTarjeta: {
+    backgroundColor:
+      colors.surface,
+  
+    borderRadius: 20,
+  
+    padding: espaciado.lg,
+  
+    maxHeight: '70%',
+  },
+  
+  modalHeader: {
+    flexDirection: 'row',
+  
+    alignItems: 'center',
+  
+    justifyContent:
+      'space-between',
+  
+    marginBottom:
+      espaciado.lg,
+  },
+  
+  cerrarModal: {
+    width: 40,
+    height: 40,
+  
+    alignItems: 'center',
+  
+    justifyContent:
+      'center',
+  },
+  
+  nombreRecetaModal: {
+    color:
+      colors.textoSecundario,
+  
+    fontSize: 12,
+  
+    marginTop: 3,
+  
+    maxWidth: 240,
+  },
+  
+  listaColecciones: {
+    maxHeight: 350,
+  },
+  
+  opcionColeccion: {
+    flexDirection: 'row',
+  
+    alignItems: 'center',
+  
+    backgroundColor:
+      colors.background,
+  
+    borderWidth: 1,
+  
+    borderColor:
+      colors.borde,
+  
+    borderRadius:
+      radios.md,
+  
+    padding:
+      espaciado.md,
+  
+    marginBottom:
+      espaciado.sm,
+  },
+  
+  iconoColeccion: {
+    width: 42,
+    height: 42,
+  
+    borderRadius: 21,
+  
+    backgroundColor:
+      colors.surfaceMuted,
+  
+    alignItems: 'center',
+  
+    justifyContent:
+      'center',
+  
+    marginRight:
+      espaciado.md,
+  },
+  
+  infoColeccion: {
+    flex: 1,
+  },
+  
+  nombreColeccion: {
+    color:
+      colors.textoPrincipal,
+  
+    fontWeight: '700',
+  
+    fontSize: 14,
+  },
+  
+  cantidadColeccion: {
+    color:
+      colors.textoSecundario,
+  
+    fontSize: 12,
+  
+    marginTop: 2,
+  },
+  
+  sinColecciones: {
+    alignItems: 'center',
+  
+    paddingVertical:
+      espaciado.lg,
+  },
+  
+  textoSinColecciones: {
+    color:
+      colors.textoPrincipal,
+  
+    fontWeight: '600',
+  
+    textAlign: 'center',
+  
+    marginTop:
+      espaciado.sm,
+  },
+  
+  ayudaColeccion: {
+    color:
+      colors.textoSecundario,
+  
+    fontSize: 12,
+  
+    textAlign: 'center',
+  
+    marginTop:
+      espaciado.xs,
+  },
+  
+  errorModal: {
+    color:
+      colors.error,
+  
+    textAlign: 'center',
+  
+    padding:
+      espaciado.md,
   },
 });

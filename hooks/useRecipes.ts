@@ -54,7 +54,11 @@ export function useRecipes({ busqueda = '', modoHogar = true }: OpcionesRecetas)
   }, [busqueda, modoHogar]);
 
   useEffect(() => {
-    cargar();
+    const ejecutarCarga = async () => {
+      await cargar();
+    };
+  
+    void ejecutarCarga();
   }, [cargar]);
 
   return { recetas, cargando, error, recargar: cargar };

@@ -94,11 +94,7 @@ export function HomeScreen() {
     
       icono: require('../assets/images/icons/heart.png'),
     
-      onPress: () =>
-        Alert.alert(
-          'Próximamente',
-          'Favoritos está en construcción.'
-        ),
+      onPress: () => navigation.navigate('Favoritos'),
     },
   
     {
