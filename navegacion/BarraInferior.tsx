@@ -1,7 +1,6 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigatorScreenParams, getFocusedRouteNameFromRoute } from "@react-navigation/native";
-import { Alert } from "react-native";
 import BarraPestanas from "./BarraPestanas";
 
 // Pantallas de la pestaña "Inicio"
@@ -12,7 +11,6 @@ import { RecetarioScreen } from "../screens/RecetarioScreen";
 import { RecipeDetailScreen } from "../screens/RecipeDetailScreen";
 import { WeekPlanScreen } from "../screens/WeekPlanScreen";
 import { ModoCocinaScreen } from '../screens/ModoCocinaScreen';
-import Alergias from "../screens/alergias";
 import PersonalizaScreen from "../perfil/PersonalizaScreen";
 
 // Pantallas de la pestaña "Comunidad"
@@ -37,7 +35,6 @@ export type InicioParamList = {
   Home: undefined;
   Recetario: { busquedaInicial?: string } | undefined;
   RecetaDetalle: { recetaId: number };
-  Alergias: undefined;
   ModoCocina: {
     recetaId: number;
     porciones?: number;
@@ -61,7 +58,7 @@ export type InicioParamList = {
 };
 
 export type ComunidadParamList = {
-  ComunidadFeed: undefined;
+  ComunidadFeed: { publicada?: number } | undefined;
   DetalleComunidad: { recetaId: number; version?: number };
   CrearReceta: { recetaId?: number } | undefined;
   MisPublicaciones: undefined;
@@ -80,6 +77,8 @@ export type CuentaParamList = {
 
 // BARRA: las pestañas de la barra
 export type BarraParamList = {
+  Recetas: undefined;
+  Alacena: undefined;
   Inicio: NavigatorScreenParams<InicioParamList> | undefined;
   Comunidad: NavigatorScreenParams<ComunidadParamList> | undefined;
   Cuenta: NavigatorScreenParams<CuentaParamList> | undefined;
@@ -105,8 +104,6 @@ function PestanaInicio() {
       <InicioStack.Screen name="RecetaDetalle" component={RecipeDetailScreen} />
       <InicioStack.Screen name="Alacena" component={AlacenaScreen} />
       <InicioStack.Screen name="QueCocino" component={QueCocinoHoyScreen} />
-      {/* Alergias sí lleva header nativo simple, porque su propio diseño
-          no trae uno propio (usa un ActivityIndicator/ScrollView plano). */}
       <InicioStack.Screen
         name="Favoritos"
         component={FavoritosScreen}
@@ -121,11 +118,6 @@ function PestanaInicio() {
         name="ModoCocina"
         component={ModoCocinaScreen}
       />
-      <InicioStack.Screen
-        name="Alergias"
-        component={Alergias}
-        options={{ headerShown: true, title: "Alergias" }}
-      />
       <InicioStack.Screen name="TuSemana" component={WeekPlanScreen} />
       {/* PERFIL: se abre desde la tarjeta de la Home */}
       <InicioStack.Screen name="Personaliza" component={PersonalizaScreen} />
@@ -137,8 +129,9 @@ function PestanaComunidad() {
   return (
     <ComunidadStack.Navigator screenOptions={{ headerShown: false }}>
       <ComunidadStack.Screen name="ComunidadFeed">
-        {({ navigation }) => (
+        {({ navigation, route }) => (
           <ComunidadScreen
+            recetaPublicada={route.params?.publicada}
             onAbrirReceta={(id) => navigation.navigate("DetalleComunidad", { recetaId: id })}
             onPublicar={() => navigation.navigate("CrearReceta")}
             onMisPublicaciones={() => navigation.navigate("MisPublicaciones")}
@@ -155,10 +148,6 @@ function PestanaComunidad() {
               navigation.navigate("ModoCocina", { recetaId: route.params.recetaId, porciones })
             }
             onEditar={(id) => navigation.navigate("CrearReceta", { recetaId: id })}
-            onAgregarSemana={() =>
-              Alert.alert("Próximamente", "Agregar a mi semana está en construcción.")
-            }
-            onYaLaPrepare={() => Alert.alert("Próximamente", "Ya la preparé está en construcción.")}
           />
         )}
       </ComunidadStack.Screen>
@@ -180,7 +169,7 @@ function PestanaComunidad() {
             onPublicada={(id, fueEdicion) =>
               fueEdicion
                 ? navigation.popTo("DetalleComunidad", { recetaId: id, version: Date.now() })
-                : navigation.replace("DetalleComunidad", { recetaId: id })
+                : navigation.popTo("ComunidadFeed", { publicada: id })
             }
           />
         )}
@@ -206,6 +195,12 @@ function PestanaCuenta() {
 // activa). Para agregar una pestaña: crea su Stack, agrégala a BarraParamList,
 // agrega su <Tab.Screen> en orden y su ícono en ICONOS de BarraPestanas.tsx.
 // Si la pantalla ya estaba en el Stack de otra pestaña, quítala de ahí.
+// "Recetas" y "Alacena" son accesos directos: BarraPestanas abre su pantalla
+// dentro de la pila de Inicio, así no se duplican pantallas ni rutas.
+function AccesoDirecto() {
+  return null;
+}
+
 export default function BarraInferior() {
   return (
     <Tab.Navigator
@@ -213,7 +208,17 @@ export default function BarraInferior() {
       tabBar={(props) => <BarraPestanas {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen name="Inicio" component={PestanaInicio} />
+      <Tab.Screen name="Recetas" component={AccesoDirecto} />
+      <Tab.Screen name="Alacena" component={AccesoDirecto} />
+      <Tab.Screen
+        name="Inicio"
+        component={PestanaInicio}
+        options={({ route }) => ({
+          tabBarStyle: PANTALLAS_SIN_BARRA.includes(getFocusedRouteNameFromRoute(route) ?? "")
+            ? { display: "none" }
+            : undefined,
+        })}
+      />
       <Tab.Screen
         name="Comunidad"
         component={PestanaComunidad}

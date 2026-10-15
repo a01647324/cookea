@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radios } from '../../theme/theme';
 import { UnidadUI, etiquetaUnidadUI } from '../../lib/unidades';
+import { colors, fuentes, radios, tamanos } from '../../theme/theme';
 
 interface Props {
   opciones: UnidadUI[];
@@ -20,6 +20,8 @@ export function SelectorUnidad({ opciones, seleccionada, onCambiar }: Props) {
             disabled={opciones.length === 1}
             onPress={() => onCambiar(u)}
             style={[estilos.pastilla, activa && estilos.activa]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: activa }}
           >
             <Text style={[estilos.texto, activa && estilos.textoActivo]}>{etiquetaUnidadUI(u)}</Text>
           </Pressable>
@@ -35,23 +37,24 @@ const estilos = StyleSheet.create({
     gap: 6,
   },
   pastilla: {
+    minWidth: 48,
+    height: 38,
     paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: radios.pill,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.fondo,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activa: {
-    backgroundColor: colors.terracota,
-    borderColor: colors.terracota,
+    backgroundColor: colors.primario,
   },
   texto: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textoSecundario,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
   },
   textoActivo: {
-    color: colors.textoSobreColor,
+    fontFamily: fuentes.negrita,
+    color: colors.sobrePrimario,
   },
 });

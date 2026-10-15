@@ -1,3 +1,7 @@
+import { AvisoHost } from './components/AvisoHost';
+import { colors } from './theme/theme';
+import ConfirmarCorreoScreen from './auth/ConfirmarCorreoScreen';
+
 import { useFonts } from 'expo-font';
 import { Lora_700Bold } from '@expo-google-fonts/lora';
 import { Quicksand_500Medium, Quicksand_600SemiBold, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
@@ -38,6 +42,7 @@ export type RootStackParamList = {
   // recuperación). CambiarContrasena ahora está en la pestaña "Cuenta".
   RecuperarClave: undefined;
   NuevaContrasena: undefined;
+  ConfirmarCorreo: { correo: string; recienEnviado?: boolean };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -85,7 +90,7 @@ export default function App() {
   if (cargando || !fuentesListas) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.encabezado} />
       </View>
     );
   }
@@ -130,21 +135,19 @@ export default function App() {
             <>
               {/* AUTH: pantallas sin sesión */}
               <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen
-                name="SignUp"
-                component={SignUpScreen}
-                options={{ headerShown: true, title: 'Registro' }}
-              />
+              <Stack.Screen name="SignUp" component={SignUpScreen} />
+              <Stack.Screen name="ConfirmarCorreo" component={ConfirmarCorreoScreen} />
               {/* AUTH: recuperar clave, pasos 1 y 2 */}
               <Stack.Screen name="RecuperarClave" component={RecuperarClaveScreen} />
             </>
           )}
         </Stack.Navigator>
       </NavigationContainer>
+      <AvisoHost />
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: colors.fondo },
 });

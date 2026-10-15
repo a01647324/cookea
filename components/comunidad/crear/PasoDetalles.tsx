@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icono, { NombreIcono } from '../../Icono';
 import { Catalogo, FormularioReceta, REGEX_YOUTUBE } from '../../../hooks/useCrearReceta';
 import { colors, espaciado, fuentes, radios, tamanos, tipografia } from '../../../theme/theme';
 
@@ -15,13 +15,13 @@ interface Props {
   onAceptar: (valor: boolean) => void;
 }
 
-const ICONOS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Estufa: 'flame-outline',
-  Horno: 'thermometer-outline',
-  Licuadora: 'water-outline',
-  Microondas: 'tv-outline',
-  'Olla de presión': 'timer-outline',
-  Refrigerador: 'snow-outline',
+const ICONOS: Record<string, NombreIcono> = {
+  Estufa: 'fire-linear',
+  Horno: 'oven-mitts-linear',
+  Licuadora: 'bottle-linear',
+  Microondas: 'monitor-linear',
+  'Olla de presión': 'stopwatch-linear',
+  Refrigerador: 'fridge-linear',
 };
 
 const alternar = (lista: number[], id: number) =>
@@ -51,8 +51,10 @@ export function PasoDetalles({
                 key={e.id}
                 onPress={() => actualizar({ etiquetas: alternar(form.etiquetas, e.id) })}
                 style={[estilos.chip, activa && estilos.chipActivo]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: activa }}
               >
-                {activa && <Ionicons name="checkmark" size={14} color={colors.sobreAcento} />}
+                {activa && <Icono nombre="check-linear" size={15} color={colors.sobreAcento} />}
                 <Text style={[estilos.textoChip, activa && estilos.textoChipActivo]}>{e.nombre}</Text>
               </Pressable>
             );
@@ -70,10 +72,12 @@ export function PasoDetalles({
                 key={e.id}
                 onPress={() => actualizar({ electrodomesticos: alternar(form.electrodomesticos, e.id) })}
                 style={[estilos.herramienta, activo && estilos.herramientaActiva]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: activo }}
               >
-                <Ionicons
-                  name={ICONOS[e.nombre] ?? 'restaurant-outline'}
-                  size={22}
+                <Icono
+                  nombre={ICONOS[e.nombre] ?? 'chef-hat-linear'}
+                  size={24}
                   color={activo ? colors.primario : colors.textoSuave}
                 />
                 <Text style={[estilos.textoHerramienta, activo && { color: colors.primario }]} numberOfLines={2}>
@@ -90,7 +94,7 @@ export function PasoDetalles({
           Video de YouTube <Text style={tipografia.chico}>(opcional)</Text>
         </Text>
         <View style={[estilos.campoVideo, videoInvalido && { borderColor: colors.peligroBorde }]}>
-          <Ionicons name="logo-youtube" size={18} color={colors.textoSuave} />
+          <Icono nombre="play-circle-linear" size={20} color={colors.destacadoIntenso} />
           <TextInput
             style={estilos.inputVideo}
             value={form.video}
@@ -117,7 +121,7 @@ export function PasoDetalles({
           accessibilityState={{ checked: acepto }}
         >
           <View style={[estilos.casilla, acepto && estilos.casillaMarcada]}>
-            {acepto && <Ionicons name="checkmark" size={16} color={colors.sobrePrimario} />}
+            {acepto && <Icono nombre="check-linear" size={17} color={colors.sobrePrimario} />}
           </View>
           <Text style={estilos.textoConsentimiento}>
             Entiendo que mi receta será pública y se mostrará con mi alias{' '}
@@ -185,6 +189,7 @@ const estilos = StyleSheet.create({
   },
   herramientaActiva: {
     borderColor: colors.primario,
+    backgroundColor: colors.serenoSuave,
   },
   textoHerramienta: {
     fontFamily: fuentes.semibold,
@@ -201,7 +206,7 @@ const estilos = StyleSheet.create({
     borderColor: colors.borde,
     borderRadius: radios.md,
     paddingHorizontal: 14,
-    height: 50,
+    height: 52,
   },
   inputVideo: {
     flex: 1,

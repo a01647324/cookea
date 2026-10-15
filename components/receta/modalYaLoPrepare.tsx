@@ -1,15 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, espaciado, radios, tipografia } from '../../theme/theme';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { HojaInferior } from '../HojaInferior';
+import Icono from '../Icono';
+import { colors, espaciado, fuentes, radios, tamanos } from '../../theme/theme';
 import { RecetaDetalle, UnidadIngrediente } from '../../types/database';
 import { formatearCantidad } from '../../lib/unidades';
 import { mostrarAviso } from '../../lib/avisos';
@@ -25,8 +18,8 @@ import {
 interface Props {
   visible: boolean;
   onCerrar: () => void;
-  receta: RecetaDetalle; 
-  porciones: number; 
+  receta: RecetaDetalle;
+  porciones: number;
 }
 
 type Estado = Record<number, { marcado: boolean; cantidad: number }>;
@@ -44,8 +37,6 @@ function pasoDe(cantidad: number, base: UnidadIngrediente): number {
 }
 
 export function ModalYaLoPrepare({ visible, onCerrar, receta, porciones }: Props) {
-  const insets = useSafeAreaInsets();
-
   const filas: RecetaIng[] = useMemo(
     () =>
       [...receta.receta_ingredientes].sort(
@@ -85,7 +76,6 @@ export function ModalYaLoPrepare({ visible, onCerrar, receta, porciones }: Props
     return () => {
       cancelado = true;
     };
-
   }, [visible, receta.id, porciones]);
 
   const ocupado = accion !== null;
@@ -100,12 +90,11 @@ export function ModalYaLoPrepare({ visible, onCerrar, receta, porciones }: Props
       if (!actual) return prev;
       const paso = pasoDe(actual.cantidad, base);
       const nueva = redondear(subiendo ? actual.cantidad + paso : actual.cantidad - paso);
-      if (nueva <= 0) return prev; // nunca bajamos a 0: para eso está la casilla
+      if (nueva <= 0) return prev;
       return { ...prev, [id]: { ...actual, cantidad: nueva } };
     });
   }
 
-  // Marcados que SÍ están en la alacena = los que de verdad se van a descontar
   const aDescontar: Descuento[] = filas
     .filter((f) => estado[f.ingredientes.id]?.marcado && stock.has(f.ingredientes.id))
     .map((f) => ({ ingrediente_id: f.ingredientes.id, cantidad: estado[f.ingredientes.id].cantidad }));
@@ -148,75 +137,82 @@ export function ModalYaLoPrepare({ visible, onCerrar, receta, porciones }: Props
     if (!ocupado) onCerrar();
   }
 
-  function renderFila(f: RecetaIng) {
+  function renderFila(f: RecetaIng, indice: number) {
     const ing = f.ingredientes;
     const e = estado[ing.id];
     if (!e) return null;
 
     const enAlacena = stock.get(ing.id);
     const marcado = e.marcado;
-    const colorTexto = marcado ? colors.olivaOscuro : colors.vino;
+    const sinMenos = e.cantidad - pasoDe(e.cantidad, ing.unidad) <= 0;
 
     let pista = '';
-    let pistaAdvertencia = false;
+    let advertencia = false;
     if (!enAlacena) {
       pista = 'No está en tu alacena';
     } else if (marcado && enAlacena.cantidad < e.cantidad) {
       pista = `Solo tienes ${formatearCantidad(enAlacena.cantidad, ing.unidad)}; se descontará todo`;
-      pistaAdvertencia = true;
+      advertencia = true;
     } else {
       pista = `Tienes ${formatearCantidad(enAlacena.cantidad, ing.unidad)}`;
     }
 
     return (
-      <Pressable key={ing.id} onPress={() => alternar(ing.id)} style={estilos.fila} disabled={ocupado}>
-        <View
-          style={[
-            estilos.casilla,
-            marcado ? estilos.casillaMarcada : estilos.casillaVacia,
-          ]}
-        >
-          {marcado && <Text style={estilos.palomita}>✓</Text>}
+      <Pressable
+        key={ing.id}
+        onPress={() => alternar(ing.id)}
+        disabled={ocupado}
+        style={[estilos.fila, indice === filas.length - 1 && estilos.filaFinal, !marcado && estilos.filaApagada]}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: marcado }}
+        accessibilityLabel={ing.nombre}
+      >
+        <View style={[estilos.casilla, marcado ? estilos.casillaMarcada : estilos.casillaVacia]}>
+          {marcado && <Icono nombre="check-linear" size={18} color={colors.sobreEncabezado} />}
         </View>
 
         <View style={estilos.centroFila}>
-          <Text style={[estilos.nombre, { color: colorTexto }]} numberOfLines={2}>
+          <Text style={estilos.nombre} numberOfLines={2}>
             {ing.nombre}
             {f.opcional ? ' (opcional)' : ''}
           </Text>
-          <Text style={[estilos.pista, pistaAdvertencia && { color: colors.advertencia }]} numberOfLines={2}>
-            {pista}
-          </Text>
+          <View style={estilos.filaPista}>
+            {advertencia && <Icono nombre="danger-triangle-linear" size={14} color={colors.calidoOscuro} />}
+            <Text style={[estilos.pista, advertencia && estilos.pistaAdvertencia]} numberOfLines={2}>
+              {pista}
+            </Text>
+          </View>
         </View>
 
-        {}
-        <View style={[estilos.pastilla, { borderColor: marcado ? colors.olivaOscuro : colors.vino }]}>
-          {marcado && (
+        {marcado ? (
+          <View style={estilos.pastilla}>
             <Pressable
               onPress={() => ajustar(ing.id, ing.unidad, false)}
-              disabled={ocupado || e.cantidad - pasoDe(e.cantidad, ing.unidad) <= 0}
+              disabled={ocupado || sinMenos}
               hitSlop={8}
-              style={[estilos.botonPastilla, e.cantidad - pasoDe(e.cantidad, ing.unidad) <= 0 && { opacity: 0.3 }]}
+              style={[estilos.botonMenos, sinMenos && { opacity: 0.35 }]}
               accessibilityLabel={`Menos ${ing.nombre}`}
             >
-              <Text style={[estilos.simboloPastilla, { color: colorTexto }]}>−</Text>
+              <Icono nombre="minus-linear" size={16} color={colors.texto} />
             </Pressable>
-          )}
-          <Text style={[estilos.textoPastilla, { color: colorTexto }]} numberOfLines={1}>
-            {formatearCantidad(marcado ? e.cantidad : 0, ing.unidad)}
-          </Text>
-          {marcado && (
+            <Text style={estilos.textoPastilla} numberOfLines={1}>
+              {formatearCantidad(e.cantidad, ing.unidad)}
+            </Text>
             <Pressable
               onPress={() => ajustar(ing.id, ing.unidad, true)}
               disabled={ocupado}
               hitSlop={8}
-              style={estilos.botonPastilla}
+              style={estilos.botonMas}
               accessibilityLabel={`Más ${ing.nombre}`}
             >
-              <Text style={[estilos.simboloPastilla, { color: colorTexto }]}>+</Text>
+              <Icono nombre="add-linear" size={16} color={colors.sobreEncabezado} />
             </Pressable>
-          )}
-        </View>
+          </View>
+        ) : (
+          <View style={estilos.noUsada}>
+            <Text style={estilos.textoNoUsada}>No usada</Text>
+          </View>
+        )}
       </Pressable>
     );
   }
@@ -226,210 +222,249 @@ export function ModalYaLoPrepare({ visible, onCerrar, receta, porciones }: Props
   const descontarInactivo = ocupado || aDescontar.length === 0;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={cerrarSiLibre}>
-      <View style={estilos.fondo}>
-        <Pressable style={estilos.zonaCierre} onPress={cerrarSiLibre} />
-
-        <View style={[estilos.hoja, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
-          <View style={estilos.manija} />
-
-          <Text style={tipografia.titulo}>¡Bien hecho!</Text>
-          <Text style={estilos.subtitulo}>¿Usaste estos ingredientes? Ajusta las cantidades si es necesario.</Text>
-          <Text style={estilos.porciones}>
-            Cantidades para {porciones} {porciones === 1 ? 'porción' : 'porciones'}
-          </Text>
-
-          <ScrollView style={estilos.lista} showsVerticalScrollIndicator={false}>
-            {filas.length === 0 ? (
-              <Text style={estilos.subtitulo}>Esta receta no tiene ingredientes registrados.</Text>
-            ) : (
-              filas.map(renderFila)
-            )}
-          </ScrollView>
-
-          {error && <Text style={estilos.error}>{error}</Text>}
-          {!error && aDescontar.length === 0 && (
-            <Text style={estilos.ayuda}>
-              {hayMarcados
-                ? 'Ninguno de los ingredientes marcados está en tu alacena, así que no hay nada que descontar.'
-                : 'Marca al menos un ingrediente que tengas en tu alacena para descontarlo.'}
-            </Text>
-          )}
-
-          <Pressable
-            onPress={descontar}
-            disabled={descontarInactivo}
-            style={[estilos.botonPrimario, descontarInactivo && estilos.botonInactivo]}
-          >
-            {accion === 'descontar' ? (
-              <ActivityIndicator color={colors.textoSobreColor} />
-            ) : (
-              <Text style={estilos.textoPrimario}>{textoDescontar}</Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            onPress={registrar}
-            disabled={ocupado}
-            style={[estilos.botonSecundario, ocupado && { opacity: 0.5 }]}
-          >
-            {accion === 'registrar' ? (
-              <ActivityIndicator color={colors.textoPrincipal} />
-            ) : (
-              <Text style={estilos.textoSecundario}>Solo registrar</Text>
-            )}
-          </Pressable>
-        </View>
+    <HojaInferior visible={visible} onCerrar={cerrarSiLibre}>
+      <View style={estilos.circulo}>
+        <Icono nombre="check-circle-linear" size={30} color={colors.acentoIntenso} />
       </View>
-    </Modal>
+      <Text style={estilos.titulo}>¡Bien hecho!</Text>
+      <Text style={estilos.subtitulo}>¿Usaste estos ingredientes? Ajusta si hace falta.</Text>
+      <Text style={estilos.porciones}>
+        Cantidades para {porciones} {porciones === 1 ? 'porción' : 'porciones'}
+      </Text>
+
+      <ScrollView style={estilos.lista} showsVerticalScrollIndicator={false}>
+        {filas.length === 0 ? (
+          <Text style={estilos.subtitulo}>Esta receta no tiene ingredientes registrados.</Text>
+        ) : (
+          filas.map(renderFila)
+        )}
+      </ScrollView>
+
+      {error && <Text style={estilos.error}>{error}</Text>}
+      {!error && aDescontar.length === 0 && (
+        <Text style={estilos.ayuda}>
+          {hayMarcados
+            ? 'Ninguno de los ingredientes marcados está en tu alacena, así que no hay nada que descontar.'
+            : 'Marca al menos un ingrediente que tengas en tu alacena para descontarlo.'}
+        </Text>
+      )}
+
+      <Pressable
+        onPress={descontar}
+        disabled={descontarInactivo}
+        style={[estilos.botonPrimario, descontarInactivo && estilos.botonInactivo]}
+      >
+        {accion === 'descontar' ? (
+          <ActivityIndicator color={colors.sobreEncabezado} />
+        ) : (
+          <Text style={[estilos.textoPrimario, descontarInactivo && estilos.textoInactivo]}>{textoDescontar}</Text>
+        )}
+      </Pressable>
+
+      <Pressable onPress={registrar} disabled={ocupado} style={[estilos.botonSecundario, ocupado && { opacity: 0.5 }]}>
+        {accion === 'registrar' ? (
+          <ActivityIndicator color={colors.texto} />
+        ) : (
+          <Text style={estilos.textoSecundario}>Solo registrar</Text>
+        )}
+      </Pressable>
+      <Text style={estilos.nota}>"Solo registrar" la guarda en Ya preparadas sin tocar tu alacena.</Text>
+    </HojaInferior>
   );
 }
 
 const estilos = StyleSheet.create({
-  fondo: {
-    flex: 1,
-    backgroundColor: 'rgba(58,46,34,0.45)',
-    justifyContent: 'flex-end',
-  },
-  zonaCierre: {
-    flex: 1,
-  },
-  hoja: {
-    maxHeight: '90%',
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingTop: espaciado.sm,
-    paddingHorizontal: espaciado.lg,
-  },
-  manija: {
+  circulo: {
     alignSelf: 'center',
-    width: 44,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.borde,
-    marginBottom: espaciado.md,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.acentoSuave,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titulo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 24,
+    lineHeight: 31,
+    color: colors.texto,
+    textAlign: 'center',
+    marginTop: espaciado.sm,
   },
   subtitulo: {
-    ...tipografia.cuerpo,
-    color: colors.textoSecundario,
-    marginTop: espaciado.xs,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 22,
+    color: colors.textoSuave,
+    textAlign: 'center',
+    marginTop: 2,
   },
   porciones: {
-    ...tipografia.chico,
-    marginTop: espaciado.xs,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.chico,
+    color: colors.textoTenue,
+    textAlign: 'center',
+    marginTop: 4,
     marginBottom: espaciado.sm,
   },
   lista: {
     flexShrink: 1,
-    marginTop: espaciado.xs,
+    backgroundColor: colors.superficie,
+    borderRadius: 20,
+    paddingHorizontal: espaciado.md,
   },
   fila: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: espaciado.sm,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
     borderBottomColor: colors.borde,
   },
+  filaFinal: {
+    borderBottomWidth: 0,
+  },
+  filaApagada: {
+    opacity: 0.55,
+  },
   casilla: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   casillaMarcada: {
-    backgroundColor: colors.olivaOscuro,
-    borderColor: colors.olivaOscuro,
+    backgroundColor: colors.encabezado,
   },
   casillaVacia: {
-    backgroundColor: 'transparent',
-    borderColor: colors.vino,
-  },
-  palomita: {
-    color: colors.textoSobreColor,
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 16,
+    borderWidth: 2,
+    borderColor: colors.textoTenue,
   },
   centroFila: {
     flex: 1,
-    paddingRight: 10,
   },
   nombre: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    lineHeight: 21,
+    color: colors.texto,
+  },
+  filaPista: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
   },
   pista: {
-    ...tipografia.chico,
-    marginTop: 2,
+    flexShrink: 1,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    lineHeight: 18,
+    color: colors.textoSuave,
+  },
+  pistaAdvertencia: {
+    fontFamily: fuentes.semibold,
+    color: colors.calidoOscuro,
   },
   pastilla: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
+    gap: 4,
+    backgroundColor: colors.fondo,
     borderRadius: radios.pill,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    minHeight: 36,
+    padding: 4,
   },
-  botonPastilla: {
-    width: 26,
-    height: 26,
+  botonMenos: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.superficie,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  simboloPastilla: {
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 20,
+  botonMas: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.encabezado,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textoPastilla: {
-    minWidth: 54,
-    paddingHorizontal: 6,
+    minWidth: 56,
     textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.base,
+    color: colors.texto,
+  },
+  noUsada: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.textoTenue,
+    borderRadius: radios.pill,
+    paddingHorizontal: espaciado.sm,
+    paddingVertical: 6,
+  },
+  textoNoUsada: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.chico,
+    color: colors.textoSuave,
   },
   error: {
-    color: colors.error,
-    fontSize: 13,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.peligro,
     textAlign: 'center',
     marginTop: espaciado.sm,
   },
   ayuda: {
-    ...tipografia.chico,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    lineHeight: 18,
+    color: colors.textoSuave,
     textAlign: 'center',
     marginTop: espaciado.sm,
   },
   botonPrimario: {
-    backgroundColor: colors.oliva,
-    borderRadius: radios.md,
-    paddingVertical: 16,
+    minHeight: 54,
+    borderRadius: radios.pill,
+    backgroundColor: colors.encabezado,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: espaciado.md,
   },
   botonInactivo: {
-    backgroundColor: '#B9B0A0', 
+    backgroundColor: colors.fondoHundido,
   },
   textoPrimario: {
-    color: colors.textoSobreColor,
-    fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.sobreEncabezado,
+  },
+  textoInactivo: {
+    color: colors.textoTenue,
   },
   botonSecundario: {
-    borderRadius: radios.md,
+    minHeight: 50,
+    borderRadius: radios.pill,
     borderWidth: 1.5,
-    borderColor: colors.textoPrincipal,
-    paddingVertical: 15,
+    borderColor: colors.borde,
+    backgroundColor: colors.superficie,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: espaciado.sm,
   },
   textoSecundario: {
-    color: colors.textoPrincipal,
-    fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.destacado,
+    color: colors.texto,
+  },
+  nota: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.mini,
+    color: colors.textoTenue,
+    textAlign: 'center',
+    marginTop: espaciado.sm,
   },
 });

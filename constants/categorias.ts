@@ -1,11 +1,11 @@
 export type GrupoAlacena = 'todo' | 'refrigerados' | 'verduras' | 'despensa' | 'pronto';
 
 export const GRUPOS_ALACENA: { clave: GrupoAlacena; etiqueta: string }[] = [
-  { clave: 'todo', etiqueta: 'TODO' },
-  { clave: 'refrigerados', etiqueta: 'REFRIGERADOS' },
-  { clave: 'verduras', etiqueta: 'VERDURAS Y FRUTAS' },
-  { clave: 'despensa', etiqueta: 'DESPENSA' },
-  { clave: 'pronto', etiqueta: 'USAR PRONTO' },
+  { clave: 'todo', etiqueta: 'Todo' },
+  { clave: 'refrigerados', etiqueta: 'Refrigerados' },
+  { clave: 'verduras', etiqueta: 'Verduras y frutas' },
+  { clave: 'despensa', etiqueta: 'Despensa' },
+  { clave: 'pronto', etiqueta: 'Usar pronto' },
 ];
 
 export function normalizar(texto: string | null | undefined): string {
@@ -102,15 +102,15 @@ const ORDEN_PASILLOS = [
 ];
 
 const NOMBRE_PASILLO: Record<string, string> = {
-  verduras: '🥬 Verduras',
-  frutas: '🍎 Frutas',
-  carnes: '🥩 Carnes',
-  refrigerados: '🥛 Refrigerados',
-  granos: '🌾 Granos',
-  abarrotes: '🛒 Abarrotes',
-  enlatados: '🥫 Enlatados',
-  especias: '🧂 Especias',
-  otros: '📦 Otros',
+  verduras: 'Verduras',
+  frutas: 'Frutas',
+  carnes: 'Carnes',
+  refrigerados: 'Refrigerados',
+  granos: 'Granos',
+  abarrotes: 'Abarrotes',
+  enlatados: 'Enlatados',
+  especias: 'Especias',
+  otros: 'Otros',
 };
 
 export function ordenPasillo(categoria: string): number {

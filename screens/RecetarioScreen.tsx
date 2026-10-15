@@ -1,1378 +1,377 @@
-import React, { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useRecipes } from '../hooks/useRecipes';
+import { RecetaRecetario, useRecetario } from '../hooks/useRecetario';
 import { SearchBar } from '../components/SearchBar';
-import { VistaCargando, VistaError, VistaVacia } from '../components/StateViews';
-import { colors, coloresTarjetaReceta, espaciado, tipografia, radios } from '../theme/theme';
-import { RecetarioRecipeItem } from '../components/RecetarioRecipeItem';
-import { useAlbums } from '../hooks/useAlbums';
-import {
-  MomentoComida,
-  RecetaResumen,
-} from '../types/database';
-import {
-  formatearFechaLocal,
-  inicioDeSemana,
-  sumarDias,
-  useWeeklyPlanner,
-} from '../hooks/useWeeklyPlanner';
+import { VistaError } from '../components/StateViews';
+import { Esqueleto } from '../components/Esqueleto';
+import Icono, { NombreIcono } from '../components/Icono';
+import { TarjetaRecetario } from '../components/recetario/TarjetaRecetario';
+import { HojaColeccion } from '../components/recetario/HojaColeccion';
+import { HojaFiltros, OrdenRecetario } from '../components/recetario/HojaFiltros';
+import { HojaAgregarSemana } from '../components/receta/HojaAgregarSemana';
+import { EstadoVacio } from '../components/EstadoVacio';
+import { normalizar } from '../constants/categorias';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
-import { Ionicons } from '@expo/vector-icons';
+type Seleccion = 'todas' | 'tengo' | number;
 
-/**
- * RecetarioScreen
+const IMAGEN_SIN_RESULTADOS = require('../assets/images/vacios/olla_vacia.webp');
+const IMAGEN_SIN_RECETAS = require('../assets/images/vacios/sarten_vacio.webp');
 
- *   1. El usuario entra a Recetas (o llega desde el buscador del Home, por
- *      eso leemos `route.params?.busquedaInicial`).
- *   2. Escribe un término -> SearchBar llama a `setBusqueda` (con debounce).
- *   3. `useRecipes` vuelve a pedir datos al backend con el nuevo texto.
- *   4. Se listan los resultados; si no hay ninguno, mostramos el mensaje de
- *      "no encontrado" que pide el manual, con opción de intentar otra
- *      búsqueda (el usuario ya tiene el teclado/barra visible arriba).
- *
- * El filtro de alergias no se puede quitar
- */
+const ICONOS_CATEGORIA: [string[], NombreIcono, string, string][] = [
+  [['econom', 'barat'], 'wallet-money-linear', colors.calidoSuave, colors.calidoIntenso],
+  [['rendid', 'familia'], 'users-group-rounded-linear', colors.serenoSuave, colors.serenoIntenso],
+  [['rapid', 'express'], 'stopwatch-linear', colors.resaltadoSuave, colors.calidoOscuro],
+  [['sin estufa', 'sin fuego', 'frio', 'fria'], 'snowflake-linear', colors.serenoSuave, colors.serenoIntenso],
+  [['desayuno'], 'sun-linear', colors.resaltadoSuave, colors.calidoOscuro],
+  [['cena'], 'moon-linear', colors.serenoSuave, colors.serenoIntenso],
+  [['bebida', 'agua', 'licuado'], 'tea-cup-linear', colors.destacadoSuave, colors.destacadoIntenso],
+  [['postre', 'dulce'], 'donut-linear', colors.destacadoSuave, colors.destacadoIntenso],
+  [['verdura', 'vegetar', 'vegan'], 'leaf-linear', colors.acentoSuave, colors.acentoIntenso],
+  [['saludable', 'nutrit', 'ligera'], 'health-linear', colors.acentoSuave, colors.acentoIntenso],
+  [['estufa', 'caliente', 'sopa', 'guiso'], 'fire-linear', colors.destacadoSuave, colors.destacadoIntenso],
+];
+
+function estiloCategoria(nombre: string) {
+  const n = normalizar(nombre);
+  const encontrado = ICONOS_CATEGORIA.find(([claves]) => claves.some((c) => n.includes(c)));
+  if (encontrado) return { icono: encontrado[1], fondo: encontrado[2], color: encontrado[3] };
+  return { icono: 'tag-linear' as NombreIcono, fondo: colors.acentoSuave, color: colors.acentoIntenso };
+}
+
 export function RecetarioScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const insets = useSafeAreaInsets();
 
-  const [busqueda, setBusqueda] = useState<string>(route.params?.busquedaInicial ?? '');
-  const { recetas, cargando, error, recargar } = useRecipes({ busqueda });
-  const {
-    albumes,
-    cargando: cargandoAlbumes,
-    error: errorAlbumes,
-    crearAlbum,
-    agregarRecetaAAlbum,
-  } = useAlbums();
-  
-  
-  const [
-    recetaParaColeccion,
-    setRecetaParaColeccion,
-  ] = useState<RecetaResumen | null>(
-    null
-  );
-  
-  
-  const coleccionesPropias =
-    albumes.filter(
-      album =>
-        album.tipo === 'propio'
-    );
+  const busquedaInicial: string = route.params?.busquedaInicial ?? '';
+  const [busqueda, setBusqueda] = useState(busquedaInicial);
+  const [versionBuscador, setVersionBuscador] = useState(0);
+  const { recetas, alacenaVacia, cargando, error, recargar } = useRecetario(busqueda);
 
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [seleccion, setSeleccion] = useState<Seleccion>('todas');
   const [tiempoMaximo, setTiempoMaximo] = useState<number | null>(null);
-  const [orden, setOrden] = useState<'nombre' | 'tiempo'>('nombre');
-  const [creandoColeccion, setCreandoColeccion] = useState(false);
+  const [orden, setOrden] = useState<OrdenRecetario>('nombre');
+  const [hoja, setHoja] = useState<'filtros' | 'coleccion' | 'semana' | null>(null);
+  const [recetaActiva, setRecetaActiva] = useState<RecetaRecetario | null>(null);
+  const [refrescando, setRefrescando] = useState(false);
 
-  const [nombreNuevaColeccion, setNombreNuevaColeccion] =
-    useState('');
+  useEffect(() => {
+    setBusqueda(busquedaInicial);
+    setVersionBuscador((v) => v + 1);
+  }, [busquedaInicial]);
 
-  const [guardandoColeccion, setGuardandoColeccion] =
-    useState(false);
+  const categorias = useMemo(() => {
+    const vistas = new Map<number, string>();
+    recetas.forEach((r) => r.etiquetas.forEach((e) => vistas.set(e.id, e.nombre)));
+    return [...vistas.entries()]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [recetas]);
 
   const recetasFiltradas = useMemo(() => {
-    let resultado = [...recetas];
+    let lista = [...recetas];
+    if (seleccion === 'tengo') lista = lista.filter((r) => r.faltan === 0);
+    else if (typeof seleccion === 'number') lista = lista.filter((r) => r.etiquetas.some((e) => e.id === seleccion));
+    if (tiempoMaximo !== null) lista = lista.filter((r) => r.tiempo_min <= tiempoMaximo);
 
-    if (tiempoMaximo !== null) {
-      resultado = resultado.filter(
-        receta => receta.tiempo_min <= tiempoMaximo
-      );
+    if (orden === 'tiempo') lista.sort((a, b) => a.tiempo_min - b.tiempo_min);
+    else if (orden === 'alacena') lista.sort((a, b) => (a.faltan ?? 99) - (b.faltan ?? 99));
+    else lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    return lista;
+  }, [recetas, seleccion, tiempoMaximo, orden]);
+
+  const filtrosActivos = tiempoMaximo !== null || orden !== 'nombre';
+
+  const tituloSeccion =
+    seleccion === 'todas'
+      ? busqueda.trim()
+        ? `Resultados para «${busqueda.trim()}»`
+        : 'Todas las recetas'
+      : seleccion === 'tengo'
+        ? 'Con lo que tengo'
+        : categorias.find((c) => c.id === seleccion)?.nombre ?? 'Recetas';
+
+  function limpiarBusqueda() {
+    setBusqueda('');
+    setVersionBuscador((v) => v + 1);
+  }
+
+  function limpiarTodo() {
+    limpiarBusqueda();
+    setSeleccion('todas');
+    setTiempoMaximo(null);
+    setOrden('nombre');
+  }
+
+  async function refrescar() {
+    setRefrescando(true);
+    try {
+      await recargar();
+    } finally {
+      setRefrescando(false);
     }
+  }
 
-    if (orden === 'tiempo') {
-      resultado.sort((a, b) => a.tiempo_min - b.tiempo_min);
-    } else {
-      resultado.sort((a, b) =>
-        a.nombre.localeCompare(b.nombre, 'es')
-      );
-    }
+  function abrirHoja(tipo: 'coleccion' | 'semana', receta: RecetaRecetario) {
+    setRecetaActiva(receta);
+    setHoja(tipo);
+  }
 
-    return resultado;
-  }, [recetas, tiempoMaximo, orden]);
-
-  const [recetaParaSemana, setRecetaParaSemana] =
-  useState<RecetaResumen | null>(null);
-
-  const [diaSeleccionado, setDiaSeleccionado] =
-  useState<string | null>(null);
-
-  const [momentoSeleccionado, setMomentoSeleccionado] =
-    useState<MomentoComida | null>(null);
-
-  const [guardandoSemana, setGuardandoSemana] =
-    useState(false);
-
-  const fechaReferencia = new Date();
-
-  const {
-    guardarReceta,
-    error: errorSemana,
-  } = useWeeklyPlanner(fechaReferencia);
-
-  const inicioSemana =
-  inicioDeSemana(fechaReferencia);
-
-const nombresDias = [
-  'Lun',
-  'Mar',
-  'Mié',
-  'Jue',
-  'Vie',
-  'Sáb',
-  'Dom',
-];
-
-const diasSemana =
-  nombresDias.map(
-    (nombre, index) => {
-      const fecha =
-        sumarDias(
-          inicioSemana,
-          index
-        );
-
-      return {
-        nombre,
-        fecha:
-          formatearFechaLocal(fecha),
-        numero:
-          fecha.getDate(),
-      };
-    }
-  );
-
-  const momentos: {
-    valor: MomentoComida;
-    texto: string;
-    icono: keyof typeof Ionicons.glyphMap;
-  }[] = [
-    {
-      valor: 'desayuno',
-      texto: 'Desayuno',
-      icono: 'sunny-outline',
-    },
-    {
-      valor: 'comida',
-      texto: 'Comida',
-      icono: 'restaurant-outline',
-    },
-    {
-      valor: 'cena',
-      texto: 'Cena',
-      icono: 'moon-outline',
-    },
-    {
-      valor: 'bebida',
-      texto: 'Bebida',
-      icono: 'cafe-outline',
-    },
+  const opciones: { clave: Seleccion; nombre: string; icono: NombreIcono; fondo: string; color: string }[] = [
+    { clave: 'todas', nombre: 'Todas', icono: 'widget-linear', fondo: colors.superficie, color: colors.textoSuave },
+    ...(alacenaVacia
+      ? []
+      : [{ clave: 'tengo' as Seleccion, nombre: 'Con lo que tengo', icono: 'check-circle-linear' as NombreIcono, fondo: colors.acentoSuave, color: colors.acentoIntenso }]),
+    ...categorias.map((c) => ({ clave: c.id as Seleccion, nombre: c.nombre, ...estiloCategoria(c.nombre) })),
   ];
 
-  async function agregarAMiSemana() {
-    if (
-      !recetaParaSemana ||
-      !diaSeleccionado ||
-      !momentoSeleccionado
-    ) {
-      Alert.alert(
-        'Faltan datos',
-        'Selecciona un día y un momento.'
-      );
-  
-      return;
-    }
-  
-    setGuardandoSemana(true);
-  
-    const ok =
-      await guardarReceta(
-        diaSeleccionado,
-        momentoSeleccionado,
-        recetaParaSemana.id
-      );
-  
-    setGuardandoSemana(false);
-  
-    if (ok) {
-      const nombreReceta =
-        recetaParaSemana.nombre;
-  
-      setRecetaParaSemana(null);
-      setDiaSeleccionado(null);
-      setMomentoSeleccionado(null);
-  
-      Alert.alert(
-        'Agregada a tu semana',
-        `${nombreReceta} se agregó a tu plan semanal.`
-      );
-    }
-  }
+  const encabezado = (
+    <View>
+      <View style={[estilos.superior, { paddingTop: insets.top + espaciado.sm }]}>
+        <Pressable onPress={() => navigation.goBack()} style={estilos.botonAtras} accessibilityLabel="Regresar">
+          <Icono nombre="arrow-left-linear" size={22} color={colors.texto} />
+        </Pressable>
+        {!cargando && (
+          <Text style={estilos.contador}>
+            {recetas.length} {recetas.length === 1 ? 'receta' : 'recetas'}
+          </Text>
+        )}
+      </View>
 
-  async function guardarEnColeccion(
-    albumId: number
-  ) {
-    if (!recetaParaColeccion) {
-      return;
-    }
-  
-    const ok =
-      await agregarRecetaAAlbum(
-        albumId,
-        recetaParaColeccion.id
-      );
-  
-    if (ok) {
-      const nombreReceta =
-        recetaParaColeccion.nombre;
-  
-      setRecetaParaColeccion(
-        null
-      );
-  
-      Alert.alert(
-        'Guardada',
-        `${nombreReceta} se agregó a tu colección.`
-      );
-    }
-  }
+      <Text style={estilos.titulo}>Recetario</Text>
 
-  async function crearYAgregarColeccion() {
-    if (!recetaParaColeccion) return;
-  
-    const nombreLimpio =
-      nombreNuevaColeccion.trim();
-  
-    if (!nombreLimpio) {
-      Alert.alert(
-        'Nombre requerido',
-        'Escribe un nombre para la colección.'
+      <View style={estilos.filaBuscador}>
+        <View style={{ flex: 1 }}>
+          <SearchBar key={versionBuscador} valorInicial={busqueda} placeholder="Busca una receta" onBuscar={setBusqueda} />
+        </View>
+        <Pressable onPress={() => setHoja('filtros')} style={estilos.botonFiltro} accessibilityLabel="Filtrar recetas">
+          <Icono nombre="tuning-2-linear" size={22} color={colors.sobreEncabezado} />
+          {filtrosActivos && <View style={estilos.puntoFiltro} />}
+        </Pressable>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.categorias}>
+        {opciones.map((o) => {
+          const activa = seleccion === o.clave;
+          return (
+            <Pressable
+              key={String(o.clave)}
+              onPress={() => setSeleccion(o.clave)}
+              style={estilos.categoria}
+              accessibilityRole="button"
+              accessibilityState={{ selected: activa }}
+            >
+              <View style={[estilos.circulo, { backgroundColor: activa ? colors.encabezado : o.fondo }]}>
+                <Icono nombre={o.icono} size={24} color={activa ? colors.sobreEncabezado : o.color} />
+              </View>
+              <Text style={[estilos.nombreCategoria, activa && estilos.nombreCategoriaActiva]} numberOfLines={2}>
+                {o.nombre}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={estilos.encabezadoSeccion}>
+        <Text style={estilos.tituloSeccion} numberOfLines={1}>
+          {tituloSeccion}
+        </Text>
+        {!cargando && <Text style={estilos.contador}>{recetasFiltradas.length}</Text>}
+      </View>
+    </View>
+  );
+
+  function vacio() {
+    if (cargando) {
+      return (
+        <View style={estilos.esqueletos}>
+          {[0, 1].map((i) => (
+            <View key={i} style={{ marginBottom: espaciado.lg }}>
+              <Esqueleto ancho="100%" alto={185} radio={radios.lg} />
+              <Esqueleto ancho="60%" alto={20} estilo={{ marginTop: espaciado.sm }} />
+              <Esqueleto ancho="40%" alto={14} estilo={{ marginTop: 6 }} />
+            </View>
+          ))}
+        </View>
       );
-      return;
     }
-  
-    setGuardandoColeccion(true);
-  
-    const albumCreado =
-      await crearAlbum(nombreLimpio);
-  
-    if (!albumCreado) {
-      setGuardandoColeccion(false);
-      return;
-    }
-  
-    const ok =
-      await agregarRecetaAAlbum(
-        albumCreado.id,
-        recetaParaColeccion.id
-      );
-  
-    setGuardandoColeccion(false);
-  
-    if (ok) {
-      const nombreReceta =
-        recetaParaColeccion.nombre;
-  
-      setNombreNuevaColeccion('');
-      setCreandoColeccion(false);
-      setRecetaParaColeccion(null);
-  
-      Alert.alert(
-        'Guardada',
-        `${nombreReceta} se agregó a "${albumCreado.nombre}".`
-      );
-    }
+    if (error) return <VistaError mensaje={error} onReintentar={recargar} />;
+
+    const conBusqueda = busqueda.trim().length > 0;
+    return (
+      <EstadoVacio
+        imagen={conBusqueda ? IMAGEN_SIN_RESULTADOS : IMAGEN_SIN_RECETAS}
+        titulo={conBusqueda ? `No encontramos «${busqueda.trim()}»` : 'Aún no hay recetas aquí'}
+        texto={
+          seleccion === 'tengo'
+            ? 'Todavía no tienes todos los ingredientes de ninguna receta. Prueba con "Lo que más tengo" en los filtros.'
+            : conBusqueda
+              ? 'Revisa cómo está escrito o prueba con otra palabra.'
+              : 'Prueba con otra categoría o quita algunos filtros.'
+        }
+        accion={{ texto: 'Ver todas las recetas', onPress: limpiarTodo }}
+      />
+    );
   }
 
   return (
-    <SafeAreaView style={estilos.pantalla} edges={['top']}>
-      <View style={estilos.encabezado}>
-        <Pressable onPress={() => navigation.goBack()} style={estilos.botonAtras}>
-          <Text style={estilos.flecha}>←</Text>
-        </Pressable>
-        <Text style={tipografia.titulo}>COOKEA</Text>
-        <View style={estilos.espacioDerecho} />
-      </View>
-
-      <View style={estilos.buscadorContenedor}>
-        <SearchBar
-          valorInicial={busqueda}
-          onBuscar={setBusqueda}
-          onFiltro={() => setMostrarFiltros(!mostrarFiltros)}
-        />
-      </View>
-
-      {mostrarFiltros && (
-      <View style={estilos.panelFiltros}>
-        <Text style={estilos.tituloFiltros}>Filtrar recetas</Text>
-
-        <Text style={estilos.etiquetaFiltro}>
-          Tiempo de preparación
-        </Text>
-
-        <View style={estilos.opcionesFiltro}>
-          {([
-            { titulo: 'Todos', valor: null },
-            { titulo: '15 min', valor: 15 },
-            { titulo: '30 min', valor: 30 },
-            { titulo: '60 min', valor: 60 },
-          ] as { titulo: string; valor: number | null }[]).map(opcion => (
-            <Pressable
-              key={opcion.titulo}
-              onPress={() => setTiempoMaximo(opcion.valor)}
-              style={[
-                estilos.chipFiltro,
-                tiempoMaximo === opcion.valor && estilos.chipActivo,
-              ]}
-            >
-              <Text
-                style={[
-                  estilos.textoChip,
-                  tiempoMaximo === opcion.valor && estilos.textoChipActivo,
-                ]}
-              >
-                {opcion.titulo}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={estilos.etiquetaFiltro}>Ordenar por</Text>
-
-        <View style={estilos.opcionesFiltro}>
-          <Pressable
-            onPress={() => setOrden('nombre')}
-            style={[
-              estilos.chipFiltro,
-              orden === 'nombre' && estilos.chipActivo,
-            ]}
-          >
-            <Text
-              style={[
-                estilos.textoChip,
-                orden === 'nombre' && estilos.textoChipActivo,
-              ]}
-            >
-              Nombre
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setOrden('tiempo')}
-            style={[
-              estilos.chipFiltro,
-              orden === 'tiempo' && estilos.chipActivo,
-            ]}
-          >
-            <Text
-              style={[
-                estilos.textoChip,
-                orden === 'tiempo' && estilos.textoChipActivo,
-              ]}
-            >
-              Menor tiempo
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    )}
-
-
-
-
-      {cargando ? (
-        <VistaCargando mensaje="Buscando recetas..." />
-      ) : error ? (
-        <VistaError mensaje={error} onReintentar={recargar} />
-      ) : recetasFiltradas.length === 0? (
-        <VistaVacia
-          mensaje={
-            busqueda.trim().length > 0
-              ? `No encontramos recetas para "${busqueda}" con los filtros seleccionados.`
-              : 'No hay recetas que coincidan con los filtros seleccionados.'
-          }
-        />
-      ) : (
-        <FlatList
-          data={recetasFiltradas}
-          keyExtractor={(receta) => String(receta.id)}
-          contentContainerStyle={estilos.lista}
-          renderItem={({ item, index }) => (
-            <RecetarioRecipeItem
-          
-              receta={item}
-          
-              colorFondo={
-                coloresTarjetaReceta[
-                  index %
-                    coloresTarjetaReceta.length
-                ]
-              }
-          
-              onAbrir={() =>
-                navigation.navigate(
-                  'RecetaDetalle',
-                  {
-                    recetaId: item.id,
-                  }
-                )
-              }
-          
-              onColeccion={(
-                receta
-              ) =>
-                setRecetaParaColeccion(
-                  receta
-                )
-              }
-
-              onSemana={(receta) => {
-                setRecetaParaSemana(receta);
-                setDiaSeleccionado(null);
-                setMomentoSeleccionado(null);
-              }}
-          
-            />
-          )}
-        />
-      )}
-      <Modal
-  visible={
-    recetaParaColeccion !==
-    null
-  }
-  transparent
-  animationType="fade"
-  onRequestClose={() =>
-    setRecetaParaColeccion(
-      null
-    )
-  }
->
-
-  <View
-    style={
-      estilos.modalFondo
-    }
-  >
-
-    <View
-      style={
-        estilos.modalTarjeta
-      }
-    >
-
-      <View
-        style={
-          estilos.modalHeader
+    <View style={estilos.pantalla}>
+      <FlatList
+        data={cargando && recetas.length === 0 ? [] : recetasFiltradas}
+        keyExtractor={(r) => String(r.id)}
+        ListHeaderComponent={encabezado}
+        ListEmptyComponent={vacio}
+        contentContainerStyle={estilos.lista}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={colors.primario} colors={[colors.primario]} />
         }
-      >
-
-        <View>
-
-          <Text
-            style={
-              tipografia.subtitulo
-            }
-          >
-            Agregar a colección
-          </Text>
-
-          {recetaParaColeccion && (
-
-            <Text
-              style={
-                estilos.nombreRecetaModal
-              }
-              numberOfLines={1}
-            >
-              {
-                recetaParaColeccion.nombre
-              }
-            </Text>
-
-          )}
-
-        </View>
-
-
-        <Pressable
-          style={
-            estilos.cerrarModal
-          }
-          onPress={() =>
-            setRecetaParaColeccion(
-              null
-            )
-          }
-        >
-
-          <Ionicons
-            name="close"
-            size={24}
-            color={
-              colors.textoPrincipal
-            }
+        renderItem={({ item }) => (
+          <TarjetaRecetario
+            receta={item}
+            onAbrir={() => navigation.navigate('RecetaDetalle', { recetaId: item.id })}
+            onColeccion={() => abrirHoja('coleccion', item)}
+            onSemana={() => abrirHoja('semana', item)}
           />
-
-        </Pressable>
-
-      </View>
-
-
-      {cargandoAlbumes ? (
-
-        <ActivityIndicator
-          size="large"
-          color={
-            colors.oliva
-          }
-        />
-
-      ) : errorAlbumes ? (
-
-        <Text
-          style={
-            estilos.errorModal
-          }
-        >
-          {errorAlbumes}
-        </Text>
-
-      ) : coleccionesPropias.length ===
-        0 ? (
-
-        <View
-          style={
-            estilos.sinColecciones
-          }
-        >
-
-          <Ionicons
-            name="folder-open-outline"
-            size={36}
-            color={
-              colors.textoSecundario
-            }
-          />
-
-          <Text
-            style={
-              estilos.textoSinColecciones
-            }
-          >
-            Todavía no tienes
-            colecciones propias.
-          </Text>
-
-          <Text
-            style={
-              estilos.ayudaColeccion
-            }
-          >
-            Puedes crear una desde
-            Favoritos.
-          </Text>
-
-        </View>
-
-      ) : (
-      <>
-        <ScrollView
-          style={
-            estilos.listaColecciones
-          }
-        >
-
-          {coleccionesPropias.map(
-            album => (
-
-              <Pressable
-                key={
-                  album.id
-                }
-                style={
-                  estilos.opcionColeccion
-                }
-                onPress={() =>
-                  void guardarEnColeccion(
-                    album.id
-                  )
-                }
-              >
-
-                <View
-                  style={
-                    estilos.iconoColeccion
-                  }
-                >
-
-                  <Ionicons
-                    name="folder"
-                    size={22}
-                    color={
-                      colors.terracota
-                    }
-                  />
-
-                </View>
-
-
-                <View
-                  style={
-                    estilos.infoColeccion
-                  }
-                >
-
-                  <Text
-                    style={
-                      estilos.nombreColeccion
-                    }
-                  >
-                    {album.nombre}
-                  </Text>
-
-                  <Text
-                    style={
-                      estilos.cantidadColeccion
-                    }
-                  >
-                    {
-                      album.cantidad_recetas
-                    }{' '}
-                    {album.cantidad_recetas ===
-                    1
-                      ? 'receta'
-                      : 'recetas'}
-                  </Text>
-
-                </View>
-
-
-                <Ionicons
-                  name="add-circle-outline"
-                  size={24}
-                  color={
-                    colors.oliva
-                  }
-                />
-
-              </Pressable>
-
-            )
-          )}
-        
-
-        </ScrollView>
-        {!creandoColeccion ? (
-          <Pressable
-            style={estilos.botonNuevaColeccion}
-            onPress={() =>
-              setCreandoColeccion(true)
-            }
-          >
-            <Ionicons
-              name="add-circle-outline"
-              size={22}
-              color={colors.olivaOscuro}
-            />
-        
-            <Text
-              style={estilos.textoNuevaColeccion}
-            >
-              Crear nueva colección
-            </Text>
-          </Pressable>
-        ) : (
-          <View
-            style={estilos.crearColeccionContenedor}
-          >
-            <TextInput
-              value={nombreNuevaColeccion}
-              onChangeText={setNombreNuevaColeccion}
-              placeholder="Nombre de la colección"
-              placeholderTextColor={
-                colors.textoSecundario
-              }
-              style={estilos.inputNuevaColeccion}
-              maxLength={40}
-            />
-        
-            <View
-              style={estilos.botonesNuevaColeccion}
-            >
-              <Pressable
-                onPress={() => {
-                  setCreandoColeccion(false);
-                  setNombreNuevaColeccion('');
-                }}
-              >
-                <Text
-                  style={estilos.cancelarColeccion}
-                >
-                  Cancelar
-                </Text>
-              </Pressable>
-        
-              <Pressable
-                disabled={guardandoColeccion}
-                style={estilos.guardarColeccion}
-                onPress={() =>
-                  void crearYAgregarColeccion()
-                }
-              >
-                <Text
-                  style={estilos.textoGuardarColeccion}
-                >
-                  {guardandoColeccion
-                    ? 'Creando...'
-                    : 'Crear y agregar'}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
         )}
-      </>
+      />
+
+      <HojaFiltros
+        visible={hoja === 'filtros'}
+        tiempoMaximo={tiempoMaximo}
+        orden={orden}
+        conAlacena={!alacenaVacia}
+        onTiempo={setTiempoMaximo}
+        onOrden={setOrden}
+        onLimpiar={() => {
+          setTiempoMaximo(null);
+          setOrden('nombre');
+        }}
+        onCerrar={() => setHoja(null)}
+      />
+      <HojaColeccion visible={hoja === 'coleccion'} receta={recetaActiva} onCerrar={() => setHoja(null)} />
+      {recetaActiva && (
+        <HojaAgregarSemana
+          visible={hoja === 'semana'}
+          recetaId={recetaActiva.id}
+          nombreReceta={recetaActiva.nombre}
+          onCerrar={() => setHoja(null)}
+        />
       )}
-
     </View>
-
-  </View>
-
-</Modal>
-<Modal
-  visible={recetaParaSemana !== null}
-  transparent
-  animationType="fade"
-  onRequestClose={() =>
-    setRecetaParaSemana(null)
-  }
->
-  <View style={estilos.modalFondo}>
-
-    <View style={estilos.modalTarjeta}>
-
-      <View style={estilos.modalHeader}>
-        <View>
-          <Text style={tipografia.subtitulo}>
-            Agregar a mi semana
-          </Text>
-
-          {recetaParaSemana && (
-            <Text
-              style={
-                estilos.nombreRecetaModal
-              }
-            >
-              {recetaParaSemana.nombre}
-            </Text>
-          )}
-        </View>
-
-        <Pressable
-          style={estilos.cerrarModal}
-          onPress={() =>
-            setRecetaParaSemana(null)
-          }
-        >
-          <Ionicons
-            name="close"
-            size={24}
-            color={colors.textoPrincipal}
-          />
-        </Pressable>
-      </View>
-
-
-      <Text style={estilos.tituloSeccionSemana}>
-        Elige un día
-      </Text>
-
-      <View style={estilos.diasSemana}>
-        {diasSemana.map((dia) => {
-
-          const activo =
-            diaSeleccionado ===
-            dia.fecha;
-
-          return (
-            <Pressable
-              key={dia.fecha}
-              style={[
-                estilos.diaSemana,
-                activo &&
-                  estilos.diaSemanaActivo,
-              ]}
-              onPress={() =>
-                setDiaSeleccionado(
-                  dia.fecha
-                )
-              }
-            >
-              <Text
-                style={[
-                  estilos.nombreDiaSemana,
-                  activo &&
-                    estilos.textoDiaActivo,
-                ]}
-              >
-                {dia.nombre}
-              </Text>
-
-              <Text
-                style={[
-                  estilos.numeroDiaSemana,
-                  activo &&
-                    estilos.textoDiaActivo,
-                ]}
-              >
-                {dia.numero}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-
-      <Text style={estilos.tituloSeccionSemana}>
-        Momento
-      </Text>
-
-      <View style={estilos.momentosSemana}>
-
-        {momentos.map((momento) => {
-
-          const activo =
-            momentoSeleccionado ===
-            momento.valor;
-
-          return (
-            <Pressable
-              key={momento.valor}
-              style={[
-                estilos.momentoSemana,
-                activo &&
-                  estilos.momentoSemanaActivo,
-              ]}
-              onPress={() =>
-                setMomentoSeleccionado(
-                  momento.valor
-                )
-              }
-            >
-              <Ionicons
-                name={momento.icono}
-                size={20}
-                color={
-                  activo
-                    ? colors.textoSobreColor
-                    : colors.olivaOscuro
-                }
-              />
-
-              <Text
-                style={[
-                  estilos.textoMomentoSemana,
-                  activo &&
-                    estilos.textoMomentoActivo,
-                ]}
-              >
-                {momento.texto}
-              </Text>
-            </Pressable>
-          );
-        })}
-
-      </View>
-
-
-      {errorSemana && (
-        <Text style={estilos.errorModal}>
-          {errorSemana}
-        </Text>
-      )}
-
-
-      <Pressable
-        disabled={
-          !diaSeleccionado ||
-          !momentoSeleccionado ||
-          guardandoSemana
-        }
-        style={[
-          estilos.botonAgregarSemana,
-          (
-            !diaSeleccionado ||
-            !momentoSeleccionado ||
-            guardandoSemana
-          ) &&
-            estilos.botonAgregarSemanaDesactivado,
-        ]}
-        onPress={() =>
-          void agregarAMiSemana()
-        }
-      >
-        {guardandoSemana ? (
-          <ActivityIndicator
-            color={colors.textoSobreColor}
-          />
-        ) : (
-          <>
-            <Ionicons
-              name="calendar"
-              size={19}
-              color={
-                colors.textoSobreColor
-              }
-            />
-
-            <Text
-              style={
-                estilos.textoAgregarSemana
-              }
-            >
-              Agregar a mi semana
-            </Text>
-          </>
-        )}
-      </Pressable>
-
-    </View>
-
-  </View>
-</Modal>
-    </SafeAreaView>
   );
 }
-
 
 const estilos = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.fondo,
   },
-  encabezado: {
+  lista: {
+    paddingBottom: 120,
+  },
+  superior: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: espaciado.sm,
     paddingHorizontal: espaciado.md,
   },
   botonAtras: {
-    width: 32,
-    height: 32,
-    alignItems: 'flex-start',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.superficie,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  flecha: {
-    fontSize: 20,
-    color: colors.textoPrincipal,
+  contador: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
   },
-  espacioDerecho: {
-    width: 32, 
-  },
-  buscadorContenedor: {
+  titulo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 31,
+    lineHeight: 39,
+    color: colors.texto,
     paddingHorizontal: espaciado.md,
-    marginVertical: espaciado.md,
-  },
-  lista: {
-    paddingHorizontal: espaciado.md,
-    paddingBottom: espaciado.xl,
-  },
-
-
-  panelFiltros: {
-    backgroundColor: colors.surface,
-    marginHorizontal: espaciado.md,
-    marginBottom: espaciado.md,
-    padding: espaciado.md,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.borde,
-  },
-
-  tituloFiltros: {
-    ...tipografia.subtitulo,
-    marginBottom: espaciado.md,
-  },
-
-  etiquetaFiltro: {
-    ...tipografia.cuerpo,
-    fontWeight: '600',
-    marginBottom: espaciado.sm,
-  },
-
-  opcionesFiltro: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: espaciado.sm,
-    marginBottom: espaciado.md,
-  },
-
-  chipFiltro: {
-    borderWidth: 1,
-    borderColor: colors.oliva,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-
-  chipActivo: {
-    backgroundColor: colors.oliva,
-  },
-
-  textoChip: {
-    color: colors.olivaOscuro,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
-  textoChipActivo: {
-    color: colors.surface,
-  },
-  modalFondo: {
-    flex: 1,
-    backgroundColor:
-      'rgba(0,0,0,0.40)',
-    justifyContent: 'center',
-    padding: espaciado.lg,
-  },
-  
-  modalTarjeta: {
-    backgroundColor:
-      colors.surface,
-  
-    borderRadius: 20,
-  
-    padding: espaciado.lg,
-  
-    maxHeight: '70%',
-  },
-  
-  modalHeader: {
-    flexDirection: 'row',
-  
-    alignItems: 'center',
-  
-    justifyContent:
-      'space-between',
-  
-    marginBottom:
-      espaciado.lg,
-  },
-  
-  cerrarModal: {
-    width: 40,
-    height: 40,
-  
-    alignItems: 'center',
-  
-    justifyContent:
-      'center',
-  },
-  
-  nombreRecetaModal: {
-    color:
-      colors.textoSecundario,
-  
-    fontSize: 12,
-  
-    marginTop: 3,
-  
-    maxWidth: 240,
-  },
-  
-  listaColecciones: {
-    maxHeight: 350,
-  },
-  
-  opcionColeccion: {
-    flexDirection: 'row',
-  
-    alignItems: 'center',
-  
-    backgroundColor:
-      colors.background,
-  
-    borderWidth: 1,
-  
-    borderColor:
-      colors.borde,
-  
-    borderRadius:
-      radios.md,
-  
-    padding:
-      espaciado.md,
-  
-    marginBottom:
-      espaciado.sm,
-  },
-  
-  iconoColeccion: {
-    width: 42,
-    height: 42,
-  
-    borderRadius: 21,
-  
-    backgroundColor:
-      colors.surfaceMuted,
-  
-    alignItems: 'center',
-  
-    justifyContent:
-      'center',
-  
-    marginRight:
-      espaciado.md,
-  },
-  
-  infoColeccion: {
-    flex: 1,
-  },
-  
-  nombreColeccion: {
-    color:
-      colors.textoPrincipal,
-  
-    fontWeight: '700',
-  
-    fontSize: 14,
-  },
-  
-  cantidadColeccion: {
-    color:
-      colors.textoSecundario,
-  
-    fontSize: 12,
-  
-    marginTop: 2,
-  },
-  
-  sinColecciones: {
-    alignItems: 'center',
-  
-    paddingVertical:
-      espaciado.lg,
-  },
-  
-  textoSinColecciones: {
-    color:
-      colors.textoPrincipal,
-  
-    fontWeight: '600',
-  
-    textAlign: 'center',
-  
-    marginTop:
-      espaciado.sm,
-  },
-  
-  ayudaColeccion: {
-    color:
-      colors.textoSecundario,
-  
-    fontSize: 12,
-  
-    textAlign: 'center',
-  
-    marginTop:
-      espaciado.xs,
-  },
-  
-  errorModal: {
-    color:
-      colors.error,
-  
-    textAlign: 'center',
-  
-    padding:
-      espaciado.md,
-  },
-  botonNuevaColeccion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.oliva,
-  
-    borderRadius: radios.md,
-  
-    paddingVertical: 12,
-    marginTop: espaciado.sm,
-  
-    gap: 6,
-  },
-  
-  textoNuevaColeccion: {
-    color: colors.olivaOscuro,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  
-  crearColeccionContenedor: {
     marginTop: espaciado.md,
-  },
-  
-  inputNuevaColeccion: {
-    borderWidth: 1,
-    borderColor: colors.borde,
-  
-    backgroundColor: colors.background,
-  
-    borderRadius: radios.md,
-  
-    paddingHorizontal: espaciado.md,
-    paddingVertical: 12,
-  
-    color: colors.textoPrincipal,
-    fontSize: 16,
-  },
-  
-  botonesNuevaColeccion: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  
-    marginTop: espaciado.sm,
-    gap: espaciado.md,
-  },
-  
-  cancelarColeccion: {
-    color: colors.textoSecundario,
-    fontWeight: '600',
-  },
-  
-  guardarColeccion: {
-    backgroundColor: colors.oliva,
-  
-    borderRadius: radios.md,
-  
-    paddingHorizontal: espaciado.md,
-    paddingVertical: 10,
-  },
-  
-  textoGuardarColeccion: {
-    color: colors.textoSobreColor,
-    fontWeight: '700',
-  },
-  tituloSeccionSemana: {
-    color: colors.textoPrincipal,
-    fontWeight: '700',
-    fontSize: 14,
-    marginBottom: espaciado.sm,
-    marginTop: espaciado.sm,
-  },
-  
-  diasSemana: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 4,
     marginBottom: espaciado.md,
   },
-  
-  diaSemana: {
-    flex: 1,
-    minHeight: 58,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: radios.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  
-  diaSemanaActivo: {
-    backgroundColor: colors.oliva,
-    borderColor: colors.oliva,
-  },
-  
-  nombreDiaSemana: {
-    fontSize: 11,
-    color: colors.textoSecundario,
-    fontWeight: '600',
-  },
-  
-  numeroDiaSemana: {
-    fontSize: 16,
-    color: colors.textoPrincipal,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  
-  textoDiaActivo: {
-    color: colors.textoSobreColor,
-  },
-  
-  momentosSemana: {
+  filaBuscador: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: espaciado.sm,
+    paddingHorizontal: espaciado.md,
+  },
+  botonFiltro: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.encabezado,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  puntoFiltro: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.resaltado,
+    borderWidth: 1.5,
+    borderColor: colors.encabezado,
+  },
+  categorias: {
+    gap: espaciado.sm,
+    paddingHorizontal: espaciado.md,
+    paddingTop: espaciado.lg,
+  },
+  categoria: {
+    width: 78,
+    alignItems: 'center',
+  },
+  circulo: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  nombreCategoria: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.chico,
+    lineHeight: 17,
+    color: colors.textoSuave,
+    textAlign: 'center',
+  },
+  nombreCategoriaActiva: {
+    fontFamily: fuentes.negrita,
+    color: colors.texto,
+  },
+  encabezadoSeccion: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: espaciado.sm,
+    paddingHorizontal: espaciado.md,
+    marginTop: espaciado.lg,
     marginBottom: espaciado.md,
   },
-  
-  momentoSemana: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: radios.md,
-    backgroundColor: colors.background,
+  tituloSeccion: {
+    flex: 1,
+    fontFamily: fuentes.titulo,
+    fontSize: 20,
+    lineHeight: 27,
+    color: colors.texto,
   },
-  
-  momentoSemanaActivo: {
-    backgroundColor: colors.oliva,
-    borderColor: colors.oliva,
-  },
-  
-  textoMomentoSemana: {
-    fontSize: 13,
-    color: colors.olivaOscuro,
-    fontWeight: '600',
-  },
-  
-  textoMomentoActivo: {
-    color: colors.textoSobreColor,
-  },
-  
-  botonAgregarSemana: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    backgroundColor: colors.oliva,
-    borderRadius: radios.md,
-    paddingVertical: 13,
-    marginTop: espaciado.sm,
-  },
-  
-  botonAgregarSemanaDesactivado: {
-    opacity: 0.45,
-  },
-  
-  textoAgregarSemana: {
-    color: colors.textoSobreColor,
-    fontWeight: '700',
-    fontSize: 14,
+  esqueletos: {
+    paddingHorizontal: espaciado.md,
   },
 });

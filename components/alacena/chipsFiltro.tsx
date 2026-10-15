@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { colors, espaciado, radios } from '../../theme/theme';
+import { colors, espaciado, fuentes, radios, tamanos } from '../../theme/theme';
 
 interface Opcion {
   clave: string;
@@ -28,6 +28,8 @@ export function ChipsFiltro({ opciones, seleccionada, onSeleccionar }: Props) {
             key={op.clave}
             onPress={() => onSeleccionar(op.clave)}
             style={[estilos.chip, activo && estilos.chipActivo]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: activo }}
           >
             <Text style={[estilos.texto, activo && estilos.textoActivo]}>{op.etiqueta}</Text>
           </Pressable>
@@ -40,28 +42,28 @@ export function ChipsFiltro({ opciones, seleccionada, onSeleccionar }: Props) {
 const estilos = StyleSheet.create({
   fila: {
     paddingHorizontal: espaciado.md,
-    paddingVertical: 4,
     gap: 8,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radios.md,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: radios.pill,
     borderWidth: 1,
     borderColor: colors.borde,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.superficie,
+    justifyContent: 'center',
   },
   chipActivo: {
-    backgroundColor: colors.oliva,
-    borderColor: colors.oliva,
+    backgroundColor: colors.primario,
+    borderColor: colors.primario,
   },
   texto: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textoSecundario,
-    letterSpacing: 0.3,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
   },
   textoActivo: {
-    color: colors.textoSobreColor,
+    fontFamily: fuentes.negrita,
+    color: colors.sobrePrimario,
   },
 });

@@ -1,40 +1,39 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { colors, espaciado, radios, tipografia } from '../theme/theme';
 import { useAlacena } from '../hooks/useAlacena';
 import { AlacenaItem } from '../types/alacena';
-import { GRUPOS_ALACENA, GrupoAlacena, grupoDeCategoria, normalizar } from '../constants/categorias';
+import { GrupoAlacena, grupoDeCategoria, normalizar } from '../constants/categorias';
+import Icono from '../components/Icono';
+import { SearchBar } from '../components/SearchBar';
+import { Esqueleto } from '../components/Esqueleto';
+import { EstadoVacio } from '../components/EstadoVacio';
 import { AlacenaItemCard } from '../components/alacena/alacenaItemCard';
 import { SwipeableRow } from '../components/alacena/swipeableRow';
-import { ChipsFiltro } from '../components/alacena/chipsFiltro';
+import { GRUPOS, TarjetasGrupo } from '../components/alacena/TarjetasGrupo';
 import { AgregarIngredienteModal } from '../components/alacena/agregarIngredienteModal';
 import { EditarItemModal } from '../components/alacena/editarItemModal';
-import { DespensaBamxModal } from '../components/alacena/despensaBamxModal';
-import { VistaError } from '../components/StateViews';
-import { mostrarAviso } from '../lib/avisos';
 import { BotonQueCocino } from '../components/recomendador/botonQueCocino';
+import { mostrarAviso } from '../lib/avisos';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
+
+const ORDEN_SECCIONES: GrupoAlacena[] = ['refrigerados', 'verduras', 'despensa'];
+
+function nombreGrupo(clave: GrupoAlacena) {
+  return GRUPOS.find((g) => g.clave === clave)?.nombre ?? '';
+}
 
 export function AlacenaScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { items, cargando, error, cargar, agregarVarios, cambiarCantidad, fijarUsarPronto, eliminar } =
     useAlacena();
 
   const [busqueda, setBusqueda] = useState('');
+  const [versionBuscador, setVersionBuscador] = useState(0);
   const [grupo, setGrupo] = useState<GrupoAlacena>('todo');
-  const [modalAgregar, setModalAgregar] = useState(false);
-  const [modalBamx, setModalBamx] = useState(false);
+  const [agregando, setAgregando] = useState(false);
   const [itemEditando, setItemEditando] = useState<AlacenaItem | null>(null);
   const [refrescando, setRefrescando] = useState(false);
 
@@ -44,14 +43,32 @@ export function AlacenaScreen() {
     }, [cargar])
   );
 
-  const visibles = useMemo(() => {
+  const conteos = useMemo(() => {
+    const c: Record<GrupoAlacena, number> = { todo: items.length, refrigerados: 0, verduras: 0, despensa: 0, pronto: 0 };
+    items.forEach((i) => {
+      c[grupoDeCategoria(i.ingredientes.categoria)] += 1;
+      if (i.usar_pronto) c.pronto += 1;
+    });
+    return c;
+  }, [items]);
+
+  const secciones = useMemo(() => {
     const q = normalizar(busqueda);
-    return items.filter((i) => {
+    const visibles = items.filter((i) => {
       if (q && !normalizar(i.ingredientes.nombre).includes(q)) return false;
       if (grupo === 'todo') return true;
       if (grupo === 'pronto') return i.usar_pronto;
       return grupoDeCategoria(i.ingredientes.categoria) === grupo;
     });
+
+    if (grupo !== 'todo') {
+      return visibles.length ? [{ clave: grupo, titulo: nombreGrupo(grupo), data: visibles }] : [];
+    }
+    return ORDEN_SECCIONES.map((g) => ({
+      clave: g,
+      titulo: nombreGrupo(g),
+      data: visibles.filter((i) => grupoDeCategoria(i.ingredientes.categoria) === g),
+    })).filter((s) => s.data.length > 0);
   }, [items, busqueda, grupo]);
 
   async function alJalar() {
@@ -65,145 +82,171 @@ export function AlacenaScreen() {
     if (!r.ok) mostrarAviso('Algo salió mal', r.mensaje ?? 'Intenta de nuevo.');
   }
 
-  function abrirBamxDesdeAgregar() {
-    setModalAgregar(false);
-    setTimeout(() => setModalBamx(true), 350);
+  function limpiarBusqueda() {
+    setBusqueda('');
+    setVersionBuscador((v) => v + 1);
   }
 
-  const hayFiltroActivo = busqueda.trim().length > 0 || grupo !== 'todo';
+  const buscando = busqueda.trim().length > 0;
+  const hayItems = !cargando && items.length > 0;
 
-  return (
-    <SafeAreaView style={estilos.pantalla} edges={['top']}>
-      {}
-      <View style={estilos.encabezado}>
-        <View style={estilos.ladoEncabezado}>
-          {navigation.canGoBack() && (
-            <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
-              <Text style={estilos.flecha}>←</Text>
-            </Pressable>
-          )}
-        </View>
-        <Image
-          source={require('../assets/images/cookea-logo.png')}
-          style={estilos.logo}
-          resizeMode="contain"
-        />
-        <View style={estilos.ladoEncabezado} />
-      </View>
-
-      <View style={estilos.tituloFila}>
-        <Text style={tipografia.titulo}>Mi alacena</Text>
-        {!cargando && items.length > 0 && (
-          <Text style={tipografia.chico}>
+  const encabezado = (
+    <View>
+      <View style={[estilos.superior, { paddingTop: insets.top + espaciado.sm }]}>
+        {navigation.canGoBack() ? (
+          <Pressable onPress={() => navigation.goBack()} style={estilos.botonAtras} accessibilityLabel="Regresar">
+            <Icono nombre="arrow-left-linear" size={22} color={colors.texto} />
+          </Pressable>
+        ) : (
+          <View />
+        )}
+        {hayItems && (
+          <Text style={estilos.contador}>
             {items.length} {items.length === 1 ? 'ingrediente' : 'ingredientes'}
           </Text>
         )}
       </View>
 
-      {}
-      {!cargando && items.length > 0 && (
-        <BotonQueCocino onPress={() => navigation.navigate('QueCocino')} />
+      <Text style={estilos.titulo}>Mi alacena</Text>
+
+      {(hayItems || cargando) && (
+        <>
+          <View style={estilos.buscador}>
+            <SearchBar key={versionBuscador} placeholder="Busca en tu alacena" onBuscar={setBusqueda} />
+          </View>
+
+          <View style={{ marginTop: espaciado.md }}>
+            <TarjetasGrupo seleccionado={grupo} conteos={conteos} onElegir={setGrupo} />
+          </View>
+        </>
       )}
 
-      {}
-      <View style={estilos.buscadorContenedor}>
-        <View style={estilos.buscador}>
-          <TextInput
-            value={busqueda}
-            onChangeText={setBusqueda}
-            placeholder="Busca un ingrediente"
-            placeholderTextColor={colors.textoSecundario}
-            style={estilos.input}
-          />
-          {busqueda.length > 0 ? (
-            <Pressable onPress={() => setBusqueda('')} hitSlop={8}>
-              <Text style={estilos.iconoBuscador}>✕</Text>
-            </Pressable>
-          ) : (
-            <Text style={estilos.iconoBuscador}>🔍</Text>
-          )}
-        </View>
-      </View>
+      {hayItems && conteos.pronto > 0 && grupo !== 'pronto' && !buscando && (
+        <Pressable onPress={() => setGrupo('pronto')} style={estilos.aviso} accessibilityRole="button">
+          <Icono nombre="hourglass-linear" size={22} color={colors.destacadoIntenso} />
+          <Text style={estilos.textoAviso}>
+            <Text style={estilos.textoAvisoFuerte}>
+              {conteos.pronto} {conteos.pronto === 1 ? 'ingrediente' : 'ingredientes'}
+            </Text>{' '}
+            conviene usarlos pronto
+          </Text>
+          <Text style={estilos.verAviso}>Ver</Text>
+        </Pressable>
+      )}
 
-      <View style={{ marginTop: 12, marginBottom: 6 }}>
-        <ChipsFiltro
-          opciones={GRUPOS_ALACENA}
-          seleccionada={grupo}
-          onSeleccionar={(c) => setGrupo(c as GrupoAlacena)}
+      {hayItems && !buscando && <BotonQueCocino onPress={() => navigation.navigate('QueCocino')} />}
+    </View>
+  );
+
+  function vacio() {
+    if (cargando) {
+      return (
+        <View style={estilos.esqueletos}>
+          {[0, 1, 2, 3].map((i) => (
+            <Esqueleto key={i} ancho="100%" alto={84} radio={20} estilo={{ marginBottom: espaciado.sm }} />
+          ))}
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <EstadoVacio
+          icono="danger-triangle-linear"
+          titulo="No pudimos cargar tu alacena"
+          texto={error}
+          accion={{ texto: 'Reintentar', onPress: cargar }}
         />
-      </View>
+      );
+    }
+    if (items.length === 0) {
+      return (
+        <EstadoVacio
+          imagen={require('../assets/images/vacios/alacena_vacia.webp')}
+          titulo="Tu alacena está vacía"
+          texto="Agrega lo que tienes en casa o tu despensa BAMX y te diremos qué puedes cocinar."
+          accion={{ texto: 'Agregar ingredientes', onPress: () => setAgregando(true) }}
+        />
+      );
+    }
+    if (buscando) {
+      return (
+        <EstadoVacio
+          imagen={require('../assets/images/vacios/olla_vacia.webp')}
+          compacto
+          titulo={`No encontramos «${busqueda.trim()}»`}
+          texto="Revisa cómo lo escribiste o agrégalo a tu alacena."
+          accion={{ texto: 'Limpiar búsqueda', onPress: limpiarBusqueda }}
+        />
+      );
+    }
 
-      {}
-      {cargando ? (
-        <View style={estilos.centro}>
-          <ActivityIndicator size="large" color={colors.oliva} />
-          <Text style={[tipografia.cuerpo, estilos.textoCentro]}>Cargando tu alacena...</Text>
-        </View>
-      ) : error ? (
-        <VistaError mensaje={error} onReintentar={cargar} />
-      ) : (
-        <FlatList
-          data={visibles}
-          keyExtractor={(i) => String(i.id)}
-          contentContainerStyle={estilos.lista}
-          refreshControl={<RefreshControl refreshing={refrescando} onRefresh={alJalar} />}
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            items.length === 0 ? (
-              <View style={estilos.vacio}>
-                <Text style={estilos.vacioIcono}>🧺</Text>
-                <Text style={tipografia.subtitulo}>Tu alacena está vacía</Text>
-                <Text style={[tipografia.cuerpo, estilos.textoCentro]}>
-                  Agrega lo que tienes en casa y te mostraremos recetas que puedes preparar.
-                </Text>
-                <Pressable onPress={() => setModalAgregar(true)} style={estilos.botonPrimario}>
-                  <Text style={estilos.textoBotonPrimario}>Agregar ingredientes</Text>
-                </Pressable>
-                <Pressable onPress={() => setModalBamx(true)} style={estilos.botonSecundario}>
-                  <Text style={estilos.textoBotonSecundario}>Agregar mi despensa BAMX</Text>
-                </Pressable>
-              </View>
-            ) : hayFiltroActivo ? (
-              <View style={estilos.vacio}>
-                <Text style={tipografia.subtitulo}>Sin resultados</Text>
-                <Text style={[tipografia.cuerpo, estilos.textoCentro]}>
-                  Ningún ingrediente coincide con tu búsqueda o filtro.
-                </Text>
-              </View>
-            ) : null
-          }
-          renderItem={({ item }) => (
+    if (grupo === 'pronto') {
+      return (
+        <EstadoVacio
+          imagen={require('../assets/images/vacios/pronto_vacio.webp')}
+          compacto
+          titulo="Nada por usar pronto"
+          texto="Toca un ingrediente y activa «Usar pronto» si se va a echar a perder."
+        />
+      );
+    }
+
+    const datosGrupo = GRUPOS.find((g) => g.clave === grupo);
+    return (
+      <EstadoVacio
+        compacto
+        icono={datosGrupo?.icono}
+        titulo={grupo === 'pronto' ? 'Nada por usar pronto' : `Sin ${nombreGrupo(grupo).toLowerCase()}`}
+        texto={
+          grupo === 'pronto'
+            ? 'Toca un ingrediente y activa «Usar pronto» si se va a echar a perder.'
+            : 'Cuando agregues algo de este grupo aparecerá aquí.'
+        }
+      />
+    );
+  }
+
+  return (
+    <View style={estilos.pantalla}>
+      <SectionList
+        sections={cargando || error ? [] : secciones}
+        keyExtractor={(i) => String(i.id)}
+        stickySectionHeadersEnabled={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={estilos.lista}
+        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={alJalar} tintColor={colors.encabezado} />}
+        ListHeaderComponent={encabezado}
+        ListEmptyComponent={vacio()}
+        renderSectionHeader={({ section }) => (
+          <View style={estilos.encabezadoSeccion}>
+            <Text style={estilos.tituloSeccion}>{section.titulo}</Text>
+            <Text style={estilos.contador}>{section.data.length}</Text>
+          </View>
+        )}
+        renderItem={({ item }) => (
+          <View style={estilos.fila}>
             <SwipeableRow onEliminar={() => avisarSiFalla(eliminar(item))}>
-              <AlacenaItemCard
-                item={item}
-                onCambiarCantidad={(it, nueva) => avisarSiFalla(cambiarCantidad(it, nueva))}
-                onPress={() => setItemEditando(item)}
-              />
+              <AlacenaItemCard item={item} onPress={() => setItemEditando(item)} />
             </SwipeableRow>
-          )}
-        />
-      )}
-
-      {}
-      <Pressable
-        onPress={() => setModalAgregar(true)}
-        style={estilos.fab}
-        accessibilityLabel="Agregar ingredientes"
-      >
-        <Text style={estilos.fabTexto}>+</Text>
-      </Pressable>
-
-      {}
-      <AgregarIngredienteModal
-        visible={modalAgregar}
-        onCerrar={() => setModalAgregar(false)}
-        onConfirmar={agregarVarios}
-        onAbrirBamx={abrirBamxDesdeAgregar}
+          </View>
+        )}
       />
 
-      <DespensaBamxModal
-        visible={modalBamx}
-        onCerrar={() => setModalBamx(false)}
+      {hayItems && (
+        <Pressable
+          onPress={() => setAgregando(true)}
+          style={({ pressed }) => [estilos.fab, pressed && { opacity: 0.9 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar ingredientes"
+        >
+          <Icono nombre="add-linear" size={22} color={colors.sobrePrimario} />
+          <Text style={estilos.textoFab}>Agregar</Text>
+        </Pressable>
+      )}
+
+      <AgregarIngredienteModal
+        visible={agregando}
+        onCerrar={() => setAgregando(false)}
         onConfirmar={agregarVarios}
       />
 
@@ -226,133 +269,118 @@ export function AlacenaScreen() {
           await avisarSiFalla(eliminar(item));
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.fondo,
   },
-  encabezado: {
+  lista: {
+    paddingBottom: 130,
+    flexGrow: 1,
+  },
+  superior: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 44,
     paddingHorizontal: espaciado.md,
-    paddingTop: espaciado.sm,
   },
-  ladoEncabezado: {
-    width: 40,
+  botonAtras: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.superficie,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  flecha: {
-    fontSize: 22,
-    color: colors.textoPrincipal,
+  contador: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
   },
-  logo: {
-    width: 130,
-    height: 34,
+  titulo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 31,
+    lineHeight: 39,
+    color: colors.texto,
+    paddingHorizontal: espaciado.md,
+    marginTop: espaciado.sm,
+    marginBottom: espaciado.md,
   },
-  tituloFila: {
+  buscador: {
+    paddingHorizontal: espaciado.md,
+  },
+  aviso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.destacadoSuave,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginHorizontal: espaciado.md,
+    marginTop: espaciado.md,
+  },
+  textoAviso: {
+    flex: 1,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.base,
+    lineHeight: 20,
+    color: colors.destacadoOscuro,
+  },
+  textoAvisoFuerte: {
+    fontFamily: fuentes.negrita,
+  },
+  verAviso: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.base,
+    color: colors.destacadoOscuro,
+  },
+  encabezadoSeccion: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     paddingHorizontal: espaciado.md,
-    marginTop: espaciado.md,
+    marginTop: espaciado.lg,
+    marginBottom: espaciado.sm,
   },
-  buscadorContenedor: {
-    paddingHorizontal: espaciado.md,
-    marginTop: espaciado.sm,
+  tituloSeccion: {
+    fontFamily: fuentes.titulo,
+    fontSize: 20,
+    lineHeight: 27,
+    color: colors.texto,
   },
-  buscador: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radios.pill,
-    borderWidth: 1,
-    borderColor: colors.borde,
+  fila: {
     paddingHorizontal: espaciado.md,
   },
-  input: {
-    flex: 1,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: colors.textoPrincipal,
-  },
-  iconoBuscador: {
-    fontSize: 16,
-    color: colors.textoSecundario,
-  },
-  lista: {
+  esqueletos: {
     paddingHorizontal: espaciado.md,
-    paddingTop: espaciado.sm,
-    paddingBottom: 120, // espacio para que el botón + no tape la última tarjeta
-    flexGrow: 1,
-  },
-  centro: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textoCentro: {
-    textAlign: 'center',
-    color: colors.textoSecundario,
-    marginTop: 8,
-  },
-  vacio: {
-    alignItems: 'center',
-    paddingTop: 48,
-    paddingHorizontal: espaciado.lg,
-  },
-  vacioIcono: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  botonPrimario: {
-    marginTop: 20,
-    backgroundColor: colors.terracota,
-    borderRadius: radios.pill,
-    paddingVertical: 13,
-    paddingHorizontal: 26,
-  },
-  textoBotonPrimario: {
-    color: colors.textoSobreColor,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  botonSecundario: {
-    marginTop: 10,
-    borderRadius: radios.pill,
-    borderWidth: 1,
-    borderColor: colors.oliva,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-  },
-  textoBotonSecundario: {
-    color: colors.oliva,
-    fontWeight: '600',
-    fontSize: 14,
+    marginTop: espaciado.lg,
   },
   fab: {
     position: 'absolute',
-    right: 22,
-    bottom: 28,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.terracota,
+    right: espaciado.md,
+    bottom: espaciado.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#3A2E22',
+    gap: 6,
+    height: 56,
+    paddingHorizontal: 22,
+    borderRadius: radios.pill,
+    backgroundColor: colors.primario,
+    shadowColor: colors.primario,
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 5 },
     elevation: 6,
   },
-  fabTexto: {
-    color: colors.textoSobreColor,
-    fontSize: 32,
-    lineHeight: 34,
-    fontWeight: '300',
+  textoFab: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.sobrePrimario,
   },
 });

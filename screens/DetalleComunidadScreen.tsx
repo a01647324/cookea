@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -14,7 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from '../components/Icono';
+import { ConfirmarHoja } from '../components/ConfirmarHoja';
+import { mostrarAviso } from '../lib/avisos';
 import { supabase } from '../lib/supabase';
 import { useRecetaComunidad } from '../hooks/useRecetaComunidad';
 import { MAX_COMENTARIO, useComentarios } from '../hooks/useComentarios';
@@ -23,9 +24,10 @@ import { VistaCargando, VistaError } from '../components/StateViews';
 import { ModalCalificar } from '../components/comunidad/ModalCalificar';
 import { ModalReportar } from '../components/comunidad/ModalReportar';
 import { MenuHoja, OpcionMenu } from '../components/MenuHoja';
-import { HojaInferior } from '../components/HojaInferior';
 import { colors, espaciado, fuentes, radios, sombra, tipografia, tamanos } from '../theme/theme';
 import { RecetaIngrediente } from '../types/database';
+import { ModalYaLoPrepare } from '../components/receta/modalYaLoPrepare';
+import { HojaAgregarSemana } from '../components/receta/HojaAgregarSemana';
 
 interface Props {
   recetaId: number;
@@ -33,12 +35,11 @@ interface Props {
   onVolver: () => void;
   onCocinar: (porciones: number) => void;
   onEditar: (id: number) => void;
-  onAgregarSemana: (id: number) => void;
-  onYaLaPrepare: (id: number, porciones: number) => void;
+  onAgregarSemana?: (id: number) => void;
 }
 
 type Pestana = 'ingredientes' | 'pasos';
-type Hoja = 'menu' | 'calificar' | 'reportar' | 'eliminar' | null;
+type Hoja = 'menu' | 'calificar' | 'reportar' | 'eliminar' | 'preparada' | 'semana' | null;
 
 function textoCantidad(valor: number, unidad: string) {
   const n = Number(valor.toFixed(1));
@@ -62,8 +63,6 @@ export default function DetalleComunidadScreen({
   onVolver,
   onCocinar,
   onEditar,
-  onAgregarSemana,
-  onYaLaPrepare,
 }: Props) {
   const { receta, extras, cargando, error, recargar, recargarExtras, eliminar } =
     useRecetaComunidad(recetaId);
@@ -162,7 +161,8 @@ export default function DetalleComunidadScreen({
       setHoja(null);
       onVolver();
     } else {
-      Alert.alert('No pudimos eliminarla', 'Revisa tu conexión e intenta de nuevo.');
+      setHoja(null);
+      mostrarAviso('No pudimos eliminarla', 'Revisa tu conexión e intenta de nuevo.', 'error');
     }
   };
 
@@ -205,8 +205,8 @@ export default function DetalleComunidadScreen({
     return (
       <View key={ri.ingredientes.id} style={[estilos.filaIngrediente, falta && estilos.filaFalta]}>
         <View style={[estilos.estado, si ? estilos.estadoSi : falta ? estilos.estadoNo : estilos.estadoOpcional]}>
-          <Ionicons
-            name={si ? 'checkmark' : falta ? 'close' : 'remove'}
+          <Icono
+            nombre={si ? 'check-linear' : falta ? 'close-linear' : 'minus-linear'}
             size={16}
             color={si ? colors.acentoOscuro : falta ? colors.peligro : colors.textoSuave}
           />
@@ -224,20 +224,20 @@ export default function DetalleComunidadScreen({
       {barraCompacta && (
         <View style={estilos.barraCompacta}>
           <Pressable onPress={onVolver} hitSlop={10} accessibilityLabel="Regresar">
-            <Ionicons name="arrow-back" size={22} color={colors.primario} />
+            <Icono nombre="arrow-left-linear" size={22} color={colors.primario} />
           </Pressable>
           <Text style={estilos.tituloCompacto} numberOfLines={1}>
             {receta.nombre}
           </Text>
           <Pressable onPress={alternar} hitSlop={10} accessibilityLabel="Guardar receta">
-            <Ionicons
-              name={esFavorita ? 'star' : 'star-outline'}
+            <Icono
+              nombre={esFavorita ? 'star-bold' : 'star-linear'}
               size={22}
               color={esFavorita ? colors.calido : colors.primario}
             />
           </Pressable>
           <Pressable onPress={abrirMenu} hitSlop={10} accessibilityLabel="Más opciones">
-            <Ionicons name="ellipsis-horizontal" size={22} color={colors.primario} />
+            <Icono nombre="menu-dots-linear" size={22} color={colors.primario} />
           </Pressable>
         </View>
       )}
@@ -260,21 +260,21 @@ export default function DetalleComunidadScreen({
             />
           ) : (
             <View style={[estilos.foto, estilos.fotoRespaldo]}>
-              <Ionicons name="restaurant-outline" size={48} color={colors.superficieCalida} />
+              <Icono nombre="chef-hat-linear" size={48} color={colors.superficieCalida} />
             </View>
           )}
           <Pressable onPress={onVolver} style={[estilos.botonFoto, { left: espaciado.md }]} accessibilityLabel="Regresar">
-            <Ionicons name="arrow-back" size={20} color={colors.sobreAcento} />
+            <Icono nombre="arrow-left-linear" size={20} color={colors.sobreAcento} />
           </Pressable>
           <Pressable onPress={alternar} style={[estilos.botonFoto, { right: 64 }]} accessibilityLabel="Guardar receta">
-            <Ionicons
-              name={esFavorita ? 'star' : 'star-outline'}
+            <Icono
+              nombre={esFavorita ? 'star-bold' : 'star-linear'}
               size={19}
               color={esFavorita ? colors.calificacion : colors.sobreAcento}
             />
           </Pressable>
           <Pressable onPress={abrirMenu} style={[estilos.botonFoto, { right: espaciado.md }]} accessibilityLabel="Más opciones">
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.sobreAcento} />
+            <Icono nombre="menu-dots-linear" size={20} color={colors.sobreAcento} />
           </Pressable>
         </View>
 
@@ -293,13 +293,13 @@ export default function DetalleComunidadScreen({
               </>
             )}
             {extras.total === 0 ? (
-              <View style={[estilos.chip, { backgroundColor: colors.calidoSuave }]}>
-                <Ionicons name="sparkles" size={11} color={colors.calido} />
-                <Text style={[estilos.textoChip, { color: colors.textoSuave }]}>Nueva</Text>
+              <View style={[estilos.chip, estilos.chipNueva]}>
+                <View style={estilos.puntoNueva} />
+                <Text style={[estilos.textoChip, { color: colors.texto }]}>Nueva</Text>
               </View>
             ) : (
               <View style={estilos.filaCalificacion}>
-                <Ionicons name="star" size={14} color={colors.calido} />
+                <Icono nombre="star-bold" size={14} color={colors.calido} />
                 <Text style={estilos.promedio}>{extras.promedio}</Text>
                 <Text style={tipografia.chico}>({extras.total})</Text>
               </View>
@@ -320,7 +320,7 @@ export default function DetalleComunidadScreen({
               ))}
               {extras.faltanElectrodomesticos.map((e) => (
                 <View key={e} style={[estilos.chip, { backgroundColor: colors.calidoSuave }]}>
-                  <Ionicons name="alert-circle-outline" size={12} color={colors.textoSuave} />
+                  <Icono nombre="info-circle-linear" size={12} color={colors.textoSuave} />
                   <Text style={[estilos.textoChip, { color: colors.textoSuave }]}>Necesitas {e.toLowerCase()}</Text>
                 </View>
               ))}
@@ -329,7 +329,7 @@ export default function DetalleComunidadScreen({
 
           {extras.tieneAlergeno && (
             <View style={estilos.avisoAlergia}>
-              <Ionicons name="warning-outline" size={18} color={colors.peligro} />
+              <Icono nombre="danger-triangle-linear" size={18} color={colors.peligro} />
               <Text style={estilos.textoAlergia}>
                 Contiene un ingrediente al que tú o alguien de tu hogar es alérgico.
               </Text>
@@ -339,7 +339,7 @@ export default function DetalleComunidadScreen({
           <View style={estilos.filaDatos}>
             <View style={estilos.dato}>
               <View style={estilos.iconoDato}>
-                <Ionicons name="time-outline" size={16} color={colors.textoSuave} />
+                <Icono nombre="clock-circle-linear" size={16} color={colors.textoSuave} />
               </View>
               <Text style={estilos.valorDato}>{receta.tiempo_min} min</Text>
               <Text style={tipografia.chico}>Tiempo</Text>
@@ -354,7 +354,7 @@ export default function DetalleComunidadScreen({
                   style={[estilos.botonMenos, porcionesActuales <= 1 && { opacity: 0.4 }]}
                   accessibilityLabel="Menos porciones"
                 >
-                  <Ionicons name="remove" size={14} color={colors.primario} />
+                  <Icono nombre="minus-linear" size={14} color={colors.primario} />
                 </Pressable>
                 <Text style={estilos.valorPorciones}>{porcionesActuales}</Text>
                 <Pressable
@@ -364,7 +364,7 @@ export default function DetalleComunidadScreen({
                   style={[estilos.botonMas, porcionesActuales >= 20 && { opacity: 0.4 }]}
                   accessibilityLabel="Más porciones"
                 >
-                  <Ionicons name="add" size={14} color={colors.sobrePrimario} />
+                  <Icono nombre="add-linear" size={14} color={colors.sobrePrimario} />
                 </Pressable>
               </View>
               <Text style={tipografia.chico}>Porciones</Text>
@@ -372,7 +372,7 @@ export default function DetalleComunidadScreen({
 
             <View style={estilos.dato}>
               <View style={[estilos.iconoDato, { backgroundColor: colors.acentoSuave }]}>
-                <Ionicons name="basket-outline" size={16} color={colors.acentoOscuro} />
+                <Icono nombre="cart-large-2-linear" size={16} color={colors.acentoOscuro} />
               </View>
               <Text style={estilos.valorDato}>
                 {tengo} de {obligatorios.length}
@@ -392,7 +392,7 @@ export default function DetalleComunidadScreen({
 
           {!!receta.video_url && (
             <Pressable onPress={() => Linking.openURL(receta.video_url!)} style={estilos.botonVideo}>
-              <Ionicons name="logo-youtube" size={18} color={colors.primario} />
+              <Icono nombre="play-circle-linear" size={18} color={colors.primario} />
               <Text style={estilos.textoBotonVideo}>Ver video</Text>
             </Pressable>
           )}
@@ -442,7 +442,7 @@ export default function DetalleComunidadScreen({
                     <Text style={tipografia.cuerpo}>{paso.texto}</Text>
                     {paso.temporizador_seg != null && (
                       <View style={[estilos.chip, estilos.chipTiempo]}>
-                        <Ionicons name="time-outline" size={12} color={colors.textoSuave} />
+                        <Icono nombre="clock-circle-linear" size={12} color={colors.textoSuave} />
                         <Text style={[estilos.textoChip, { color: colors.textoSuave }]}>
                           {Math.round(paso.temporizador_seg / 60)} min
                         </Text>
@@ -466,7 +466,7 @@ export default function DetalleComunidadScreen({
               </Text>
               {!extras.esMia && (
                 <Pressable onPress={abrirCalificar} style={estilos.botonCalificar}>
-                  <Ionicons name="star-outline" size={13} color={colors.sobrePrimario} />
+                  <Icono nombre="star-linear" size={13} color={colors.sobrePrimario} />
                   <Text style={estilos.textoCalificar}>Calificar</Text>
                 </Pressable>
               )}
@@ -476,7 +476,7 @@ export default function DetalleComunidadScreen({
               <ActivityIndicator color={colors.acento} style={{ marginVertical: espaciado.md }} />
             ) : comentarios.comentarios.length === 0 ? (
               <View style={estilos.sinComentarios}>
-                <Ionicons name="chatbubbles-outline" size={28} color={colors.neutro} />
+                <Icono nombre="chat-round-dots-linear" size={28} color={colors.neutro} />
                 <Text style={tipografia.chico}>Aún no hay comentarios. ¡Sé la primera persona!</Text>
               </View>
             ) : (
@@ -490,7 +490,7 @@ export default function DetalleComunidadScreen({
                     <Text style={[tipografia.chico, { marginLeft: 'auto' }]}>{haceCuanto(c.creado_en)}</Text>
                     {c.usuario_id === miId && (
                       <Pressable onPress={() => comentarios.borrar(c.id)} hitSlop={10} accessibilityLabel="Borrar comentario">
-                        <Ionicons name="trash-outline" size={15} color={colors.textoSuave} />
+                        <Icono nombre="trash-bin-trash-linear" size={15} color={colors.textoSuave} />
                       </Pressable>
                     )}
                   </View>
@@ -530,7 +530,7 @@ export default function DetalleComunidadScreen({
                 {comentarios.enviando ? (
                   <ActivityIndicator size="small" color={colors.sobrePrimario} />
                 ) : (
-                  <Ionicons name="send" size={14} color={colors.sobrePrimario} />
+                  <Icono nombre="plain-linear" size={14} color={colors.sobrePrimario} />
                 )}
               </Pressable>
             </View>
@@ -539,21 +539,21 @@ export default function DetalleComunidadScreen({
       </ScrollView>
 
       <View style={estilos.barraAcciones}>
-        <Pressable onPress={() => onAgregarSemana(recetaId)} style={estilos.botonCirculo} accessibilityLabel="Agregar a mi semana">
-          <Ionicons name="calendar-outline" size={20} color={colors.primario} />
+        <Pressable onPress={() => setHoja('semana')} style={estilos.botonCirculo} accessibilityRole="button" accessibilityLabel="Agregar a mi semana">
+          <Icono nombre="calendar-add-linear" size={20} color={colors.primario} />
         </Pressable>
         <Pressable
-          onPress={() => onYaLaPrepare(recetaId, porcionesActuales)}
+          onPress={() => setHoja('preparada')}
           style={estilos.botonCirculo}
           accessibilityLabel="Ya la preparé"
         >
-          <Ionicons name="checkmark-circle-outline" size={21} color={colors.primario} />
+          <Icono nombre="check-circle-linear" size={21} color={colors.primario} />
         </Pressable>
         <Pressable
           onPress={() => onCocinar(porcionesActuales)}
           style={({ pressed }) => [estilos.botonCocinar, pressed && { opacity: 0.9 }]}
         >
-          <Ionicons name="restaurant-outline" size={18} color={colors.sobrePrimario} />
+          <Icono nombre="chef-hat-linear" size={18} color={colors.sobrePrimario} />
           <Text style={estilos.textoCocinar}>Empezar a cocinar</Text>
         </Pressable>
       </View>
@@ -568,39 +568,33 @@ export default function DetalleComunidadScreen({
         onEnviada={alCalificar}
       />
       <ModalReportar visible={hoja === 'reportar'} recetaId={recetaId} onCerrar={cerrarHoja} />
+      <HojaAgregarSemana
+        visible={hoja === 'semana'}
+        recetaId={recetaId}
+        nombreReceta={receta.nombre}
+        onCerrar={cerrarHoja}
+      />
+      <ModalYaLoPrepare
+        visible={hoja === 'preparada'}
+        onCerrar={cerrarHoja}
+        receta={receta}
+        porciones={porcionesActuales}
+      />
       <MenuHoja
         visible={hoja === 'menu'}
         titulo={extras.esMia ? 'Tu receta' : 'Opciones'}
         opciones={opcionesMenu}
         onCerrar={cerrarHoja}
       />
-      <HojaInferior visible={hoja === 'eliminar'} onCerrar={cerrarHoja}>
-        <View style={estilos.confirmacion}>
-          <View style={estilos.haloPeligro}>
-            <Ionicons name="trash-outline" size={30} color={colors.peligro} />
-          </View>
-          <Text style={estilos.tituloConfirmacion}>¿Eliminar tu receta?</Text>
-          <Text style={estilos.textoConfirmacion}>
-            Se borrarán también sus calificaciones y comentarios. No se puede deshacer.
-          </Text>
-          <View style={estilos.filaConfirmacion}>
-            <Pressable onPress={cerrarHoja} style={[estilos.botonConfirmacion, estilos.botonCancelar]}>
-              <Text style={estilos.textoCancelar}>Cancelar</Text>
-            </Pressable>
-            <Pressable
-              onPress={confirmarEliminar}
-              disabled={eliminando}
-              style={[estilos.botonConfirmacion, estilos.botonEliminar]}
-            >
-              {eliminando ? (
-                <ActivityIndicator color={colors.sobreAcento} />
-              ) : (
-                <Text style={estilos.textoEliminar}>Eliminar</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      </HojaInferior>
+      <ConfirmarHoja
+        visible={hoja === 'eliminar'}
+        titulo="¿Eliminar tu receta?"
+        mensaje="Se borrarán también sus calificaciones y comentarios. No se puede deshacer."
+        textoConfirmar="Eliminar"
+        cargando={eliminando}
+        onConfirmar={confirmarEliminar}
+        onCerrar={cerrarHoja}
+      />
     </SafeAreaView>
   );
 }
@@ -1045,58 +1039,13 @@ const estilos = StyleSheet.create({
     letterSpacing: 0.3,
     color: colors.sobrePrimario,
   },
-  confirmacion: {
-    alignItems: 'center',
-    gap: espaciado.sm,
+  chipNueva: {
+    backgroundColor: colors.resaltadoSuave,
   },
-  haloPeligro: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: colors.peligroSuave,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: espaciado.xs,
-  },
-  tituloConfirmacion: {
-    ...tipografia.titulo,
-    fontSize: 22,
-    color: colors.primario,
-    textAlign: 'center',
-  },
-  textoConfirmacion: {
-    ...tipografia.cuerpo,
-    color: colors.textoSuave,
-    textAlign: 'center',
-    marginBottom: espaciado.sm,
-  },
-  filaConfirmacion: {
-    flexDirection: 'row',
-    gap: espaciado.sm,
-    alignSelf: 'stretch',
-  },
-  botonConfirmacion: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
-    borderRadius: radios.pill,
-  },
-  botonCancelar: {
-    borderWidth: 1.5,
-    borderColor: colors.primario,
-  },
-  botonEliminar: {
-    backgroundColor: colors.peligro,
-  },
-  textoCancelar: {
-    fontFamily: fuentes.negrita,
-    fontSize: tamanos.destacado,
-    color: colors.primario,
-  },
-  textoEliminar: {
-    fontFamily: fuentes.negrita,
-    fontSize: tamanos.destacado,
-    color: colors.sobreAcento,
+  puntoNueva: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.acentoIntenso,
   },
 });

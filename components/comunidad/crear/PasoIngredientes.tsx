@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from '../../Icono';
 import { IngredienteImagen } from '../../alacena/ingredienteImagen';
 import { FormularioReceta } from '../../../hooks/useCrearReceta';
 import { formatearUI } from '../../../lib/unidades';
@@ -16,19 +16,20 @@ interface Props {
 export function PasoIngredientes({ form, alergenos, onAgregar, onEditar }: Props) {
   return (
     <View style={estilos.contenedor}>
-      <Text style={tipografia.chico}>
-        Elígelos de la lista para que podamos avisar de alergias a quien cocine tu receta.
-      </Text>
-
       {form.ingredientes.length === 0 && (
         <View style={estilos.vacio}>
-          <Ionicons name="basket-outline" size={34} color={colors.neutro} />
           <Text style={estilos.textoVacio}>Aún no agregas ingredientes</Text>
         </View>
       )}
 
       {form.ingredientes.map((item, indice) => (
-        <Pressable key={item.ingrediente.id} onPress={() => onEditar(indice)} style={estilos.tarjeta}>
+        <Pressable
+          key={item.ingrediente.id}
+          onPress={() => onEditar(indice)}
+          style={estilos.tarjeta}
+          accessibilityRole="button"
+          accessibilityLabel={`Editar ${item.ingrediente.nombre}`}
+        >
           <IngredienteImagen
             nombre={item.ingrediente.nombre}
             categoria={item.ingrediente.categoria}
@@ -46,20 +47,20 @@ export function PasoIngredientes({ form, alergenos, onAgregar, onEditar }: Props
             </View>
             <Text style={tipografia.chico}>{formatearUI(item.valor, item.unidad)}</Text>
           </View>
-          <Ionicons name="create-outline" size={20} color={colors.textoSuave} />
+          <Icono nombre="pen-linear" size={20} color={colors.textoSuave} />
         </Pressable>
       ))}
 
       {form.ingredientes.length < 40 && (
-        <Pressable onPress={onAgregar} style={estilos.botonAgregar}>
-          <Ionicons name="add" size={20} color={colors.primario} />
+        <Pressable onPress={onAgregar} style={estilos.botonAgregar} accessibilityRole="button">
+          <Icono nombre="add-linear" size={20} color={colors.primario} />
           <Text style={estilos.textoAgregar}>Agregar ingrediente</Text>
         </Pressable>
       )}
 
       {alergenos.length > 0 && (
         <View style={estilos.aviso}>
-          <Ionicons name="warning-outline" size={18} color={colors.peligro} />
+          <Icono nombre="danger-triangle-linear" size={18} color={colors.peligro} />
           <Text style={estilos.textoAviso}>
             Contiene: <Text style={{ fontFamily: fuentes.negrita }}>{alergenos.join(', ').toLowerCase()}</Text>.
             Lo mostraremos en tu receta.
@@ -76,8 +77,7 @@ const estilos = StyleSheet.create({
   },
   vacio: {
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: espaciado.lg,
+    paddingVertical: espaciado.md,
   },
   textoVacio: {
     ...tipografia.cuerpo,
@@ -90,7 +90,7 @@ const estilos = StyleSheet.create({
     backgroundColor: colors.superficie,
     borderRadius: radios.md,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   filaNombre: {
     flexDirection: 'row',

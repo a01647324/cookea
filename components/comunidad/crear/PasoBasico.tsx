@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from '../../Icono';
 import { FormularioReceta } from '../../../hooks/useCrearReceta';
 import { colors, espaciado, fuentes, radios, tamanos, tipografia } from '../../../theme/theme';
 
@@ -33,7 +33,7 @@ function Contador({ etiqueta, valor, texto, min, max, paso, onCambiar }: Contado
           style={[estilos.botonMenos, valor <= min && estilos.apagado]}
           accessibilityLabel={`Menos ${etiqueta.toLowerCase()}`}
         >
-          <Ionicons name="remove" size={16} color={colors.primario} />
+          <Icono nombre="minus-linear" size={16} color={colors.primario} />
         </Pressable>
         <Text style={estilos.valor}>{texto}</Text>
         <Pressable
@@ -43,7 +43,7 @@ function Contador({ etiqueta, valor, texto, min, max, paso, onCambiar }: Contado
           style={[estilos.botonMas, valor >= max && estilos.apagado]}
           accessibilityLabel={`Más ${etiqueta.toLowerCase()}`}
         >
-          <Ionicons name="add" size={16} color={colors.sobrePrimario} />
+          <Icono nombre="add-linear" size={16} color={colors.sobrePrimario} />
         </Pressable>
       </View>
     </View>
@@ -55,19 +55,19 @@ export function PasoBasico({ form, actualizar, onFoto }: Props) {
 
   return (
     <View style={estilos.contenedor}>
-      <Pressable onPress={onFoto} style={estilos.foto} accessibilityLabel="Agregar foto">
+      <Pressable onPress={onFoto} style={estilos.foto} accessibilityRole="button" accessibilityLabel={form.fotoUri ? "Cambiar foto" : "Agregar foto"}>
         {form.fotoUri ? (
           <>
             <Image source={{ uri: form.fotoUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
             <View style={estilos.cambiarFoto}>
-              <Ionicons name="camera-outline" size={16} color={colors.sobreAcento} />
+              <Icono nombre="camera-linear" size={16} color={colors.sobrePrimario} />
               <Text style={estilos.textoCambiar}>Cambiar foto</Text>
             </View>
           </>
         ) : (
           <>
             <View style={estilos.iconoFoto}>
-              <Ionicons name="camera-outline" size={26} color={colors.textoSuave} />
+              <Icono nombre="gallery-add-linear" size={28} color={colors.calidoIntenso} />
             </View>
             <Text style={estilos.tituloFoto}>Agregar foto</Text>
             <Text style={tipografia.chico}>Cámara o galería · opcional</Text>
@@ -140,8 +140,8 @@ const estilos = StyleSheet.create({
     borderRadius: radios.lg,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.neutro,
-    backgroundColor: colors.calidoSuave,
+    borderColor: colors.calido,
+    backgroundColor: colors.superficie,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -178,7 +178,7 @@ const estilos = StyleSheet.create({
   textoCambiar: {
     fontFamily: fuentes.semibold,
     fontSize: tamanos.chico,
-    color: colors.sobreAcento,
+    color: colors.sobrePrimario,
   },
   campo: {
     gap: 6,
@@ -195,10 +195,10 @@ const estilos = StyleSheet.create({
     borderColor: colors.borde,
     borderRadius: radios.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
   },
   multilinea: {
-    minHeight: 90,
+    minHeight: 100,
   },
   filaContadores: {
     flexDirection: 'row',

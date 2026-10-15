@@ -1,31 +1,39 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radios } from '../../theme/theme';
+import Icono from '../Icono';
+import { colors, fuentes, radios, tamanos } from '../../theme/theme';
 
 interface Props {
-  texto: string; 
+  texto: string;
   onMenos: () => void;
   onMas: () => void;
   menosDeshabilitado?: boolean;
   compacto?: boolean;
 }
+
 export function Stepper({ texto, onMenos, onMas, menosDeshabilitado, compacto }: Props) {
+  const tamanoBoton = compacto ? 34 : 40;
   return (
-    <View style={[estilos.caja, compacto && estilos.cajaCompacta]}>
+    <View style={estilos.caja}>
       <Pressable
         onPress={onMenos}
         disabled={menosDeshabilitado}
         hitSlop={8}
-        style={[estilos.boton, menosDeshabilitado && estilos.deshabilitado]}
+        style={[estilos.boton, { width: tamanoBoton, height: tamanoBoton }, menosDeshabilitado && estilos.deshabilitado]}
         accessibilityLabel="Quitar"
       >
-        <Text style={estilos.simbolo}>−</Text>
+        <Icono nombre="minus-linear" size={18} color={colors.texto} />
       </Pressable>
       <Text style={estilos.texto} numberOfLines={1}>
         {texto}
       </Text>
-      <Pressable onPress={onMas} hitSlop={8} style={estilos.boton} accessibilityLabel="Agregar">
-        <Text style={estilos.simbolo}>+</Text>
+      <Pressable
+        onPress={onMas}
+        hitSlop={8}
+        style={[estilos.boton, { width: tamanoBoton, height: tamanoBoton }]}
+        accessibilityLabel="Agregar"
+      >
+        <Icono nombre="add-linear" size={18} color={colors.texto} />
       </Pressable>
     </View>
   );
@@ -35,37 +43,26 @@ const estilos = StyleSheet.create({
   caja: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radios.md,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
     alignSelf: 'flex-start',
-  },
-  cajaCompacta: {
-    paddingVertical: 2,
+    backgroundColor: colors.fondo,
+    borderRadius: radios.pill,
+    padding: 4,
   },
   boton: {
-    width: 32,
-    height: 32,
-    borderRadius: radios.sm,
+    borderRadius: radios.pill,
+    backgroundColor: colors.superficie,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deshabilitado: {
-    opacity: 0.3,
-  },
-  simbolo: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textoPrincipal,
-    lineHeight: 22,
+    opacity: 0.35,
   },
   texto: {
-    minWidth: 64,
+    minWidth: 72,
     textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textoPrincipal,
-    paddingHorizontal: 4,
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.cuerpo,
+    color: colors.texto,
+    paddingHorizontal: 6,
   },
 });

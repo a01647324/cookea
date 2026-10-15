@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icono, { NombreIcono } from '../Icono';
 import { HojaInferior } from '../HojaInferior';
 import { EstadoEnvio } from './EstadoEnvio';
 import { MAX_DETALLE_REPORTE, MotivoReporte, useReporte } from '../../hooks/useReporte';
@@ -12,12 +12,12 @@ interface Props {
   onCerrar: () => void;
 }
 
-const MOTIVOS: { valor: MotivoReporte; texto: string; icono: keyof typeof Ionicons.glyphMap }[] = [
-  { valor: 'contenido_inapropiado', texto: 'Contenido inapropiado', icono: 'sad-outline' },
-  { valor: 'informacion_peligrosa', texto: 'Información peligrosa', icono: 'flame-outline' },
-  { valor: 'alergenos_incorrectos', texto: 'Alérgenos incorrectos', icono: 'warning-outline' },
-  { valor: 'spam', texto: 'Spam', icono: 'megaphone-outline' },
-  { valor: 'otro', texto: 'Otro', icono: 'ellipsis-horizontal' },
+const MOTIVOS: { valor: MotivoReporte; texto: string; icono: NombreIcono }[] = [
+  { valor: 'contenido_inapropiado', texto: 'Contenido inapropiado', icono: 'sad-circle-linear' },
+  { valor: 'informacion_peligrosa', texto: 'Información peligrosa', icono: 'fire-linear' },
+  { valor: 'alergenos_incorrectos', texto: 'Alérgenos incorrectos', icono: 'danger-triangle-linear' },
+  { valor: 'spam', texto: 'Spam', icono: 'mailbox-linear' },
+  { valor: 'otro', texto: 'Otro', icono: 'menu-dots-linear' },
 ];
 
 type Fase = 'formulario' | 'exito' | 'repetido' | 'error';
@@ -67,6 +67,9 @@ export function ModalReportar({ visible, recetaId, onCerrar }: Props) {
         />
       ) : (
         <View style={estilos.contenido}>
+          <View style={estilos.halo}>
+            <Icono nombre="flag-linear" size={28} color={colors.peligro} />
+          </View>
           <Text style={estilos.titulo}>¿Qué está mal?</Text>
           <Text style={estilos.subtitulo}>Tu reporte es anónimo. Nos ayuda a cuidar a la comunidad.</Text>
 
@@ -81,10 +84,10 @@ export function ModalReportar({ visible, recetaId, onCerrar }: Props) {
                 accessibilityState={{ selected: activo }}
               >
                 <View style={[estilos.iconoOpcion, activo && estilos.iconoActivo]}>
-                  <Ionicons name={m.icono} size={16} color={activo ? colors.sobrePrimario : colors.textoSuave} />
+                  <Icono nombre={m.icono} size={19} color={activo ? colors.sobrePrimario : colors.calidoIntenso} />
                 </View>
                 <Text style={estilos.textoOpcion}>{m.texto}</Text>
-                {activo && <Ionicons name="checkmark-circle" size={22} color={colors.primario} />}
+                {activo && <Icono nombre="check-circle-bold" size={24} color={colors.primario} />}
               </Pressable>
             );
           })}
@@ -114,7 +117,7 @@ export function ModalReportar({ visible, recetaId, onCerrar }: Props) {
               style={[estilos.boton, estilos.botonReportar, (!motivo || enviando) && estilos.deshabilitado]}
             >
               {enviando ? (
-                <ActivityIndicator color={colors.sobreAcento} />
+                <ActivityIndicator color={colors.sobrePrimario} />
               ) : (
                 <Text style={estilos.textoReportar}>Reportar</Text>
               )}
@@ -130,6 +133,15 @@ const estilos = StyleSheet.create({
   contenido: {
     gap: espaciado.sm,
   },
+  halo: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.peligroSuave,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
   titulo: {
     ...tipografia.titulo,
     color: colors.primario,
@@ -137,6 +149,8 @@ const estilos = StyleSheet.create({
   },
   subtitulo: {
     ...tipografia.chico,
+    fontSize: tamanos.base,
+    lineHeight: 20,
     textAlign: 'center',
     marginBottom: espaciado.xs,
   },
@@ -149,15 +163,15 @@ const estilos = StyleSheet.create({
     borderColor: 'transparent',
     borderRadius: radios.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    minHeight: 58,
   },
   opcionActiva: {
     borderColor: colors.primario,
   },
   iconoOpcion: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.calidoSuave,
     alignItems: 'center',
     justifyContent: 'center',
@@ -188,8 +202,9 @@ const estilos = StyleSheet.create({
   boton: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
     borderRadius: radios.pill,
-    paddingVertical: 14,
   },
   botonCancelar: {
     borderWidth: 1.5,
@@ -209,6 +224,6 @@ const estilos = StyleSheet.create({
   textoReportar: {
     fontFamily: fuentes.negrita,
     fontSize: tamanos.destacado,
-    color: colors.sobreAcento,
+    color: colors.sobrePrimario,
   },
 });

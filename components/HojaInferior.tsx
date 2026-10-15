@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AvisoHost } from './AvisoHost';
 import { colors, espaciado } from '../theme/theme';
 
 interface Props {
@@ -45,7 +46,7 @@ export function HojaInferior({ visible, onCerrar, children }: Props) {
     >
       <KeyboardAvoidingView
         style={estilos.contenedor}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Pressable style={estilos.velo} onPress={onCerrar} accessibilityLabel="Cerrar" />
         <Animated.View
@@ -57,6 +58,7 @@ export function HojaInferior({ visible, onCerrar, children }: Props) {
           <View style={estilos.asa} />
           {children}
         </Animated.View>
+        <AvisoHost />
       </KeyboardAvoidingView>
     </Modal>
   );

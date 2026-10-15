@@ -11,7 +11,8 @@ interface Props {
   recomendacion: Recomendacion;
   colorFondo?: string;
   onPress: () => void;
-  variante?: 'lista' | 'carrusel';
+  variante?: 'lista' | 'carrusel' | 'destacada' | 'mini';
+  ancho?: number;
 }
 
 type Insignia = { texto: string; punto: string; fondo: string; color: string };
@@ -31,7 +32,7 @@ function calcularInsignia(recomendacion: Recomendacion): Insignia | null {
   };
 }
 
-export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variante = 'lista' }: Props) {
+export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variante = 'lista', ancho }: Props) {
   const { receta, motivos } = recomendacion;
   const { esFavorita, alternar } = useFavoriteToggle(receta.id);
   const insignia = calcularInsignia(recomendacion);
@@ -42,16 +43,94 @@ export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variant
     <Pressable
       onPress={alternar}
       hitSlop={8}
-      style={variante === 'carrusel' ? estilos.estrellaVidrio : estilos.estrellaClara}
+      style={variante === 'lista' ? estilos.estrellaClara : estilos.estrellaVidrio}
       accessibilityLabel={esFavorita ? 'Quitar de favoritos' : 'Guardar en favoritos'}
     >
       <Icono
         nombre={esFavorita ? 'star-bold' : 'star-linear'}
         size={18}
-        color={esFavorita ? colors.calificacion : variante === 'carrusel' ? colors.superficie : colors.textoSuave}
+        color={esFavorita ? colors.calificacion : variante === 'lista' ? colors.textoSuave : colors.superficie}
       />
     </Pressable>
   );
+
+  const foto = (estiloFoto: object, tamanoIcono: number) =>
+    receta.foto_url ? (
+      <Image source={{ uri: receta.foto_url }} style={estiloFoto} contentFit="cover" transition={200} />
+    ) : (
+      <View style={[estiloFoto, estilos.sinFoto, colorFondo ? { backgroundColor: colorFondo } : null]}>
+        <Icono nombre="chef-hat-linear" size={tamanoIcono} color={colors.superficie} />
+      </View>
+    );
+
+  const insigniaVidrio = (estiloExtra?: object) =>
+    insignia && (
+      <View style={[estilos.insigniaVidrio, estiloExtra]}>
+        <View style={[estilos.punto, { backgroundColor: insignia.punto }]} />
+        <Text style={estilos.textoInsigniaVidrio} numberOfLines={1}>
+          {insignia.texto}
+        </Text>
+      </View>
+    );
+
+  if (variante === 'destacada') {
+    const extra = motivos.find((m) => !m.startsWith('Tienes todo') && !m.startsWith('Te falta'));
+    return (
+      <Pressable
+        onPress={onPress}
+        style={[estilos.destacada, ancho ? { width: ancho } : null]}
+        accessibilityRole="button"
+        accessibilityLabel={etiquetaAccesible}
+      >
+        <View style={estilos.fotoDestacada}>
+          {foto(StyleSheet.absoluteFill, 44)}
+          {insigniaVidrio()}
+          {estrella}
+        </View>
+        <View style={[estilos.cuerpoDestacada, { backgroundColor: colorFondo ?? colors.resaltadoSuave }]}>
+          <Text style={estilos.nombreDestacada} numberOfLines={2}>
+            {receta.nombre}
+          </Text>
+          <View style={estilos.filaDatos}>
+            <View style={estilos.meta}>
+              <Icono nombre="clock-circle-linear" size={16} color={colors.calidoOscuro} />
+              <Text style={estilos.textoDato}>{receta.tiempo_min} min</Text>
+            </View>
+            <View style={estilos.meta}>
+              <Icono nombre="users-group-rounded-linear" size={16} color={colors.calidoOscuro} />
+              <Text style={estilos.textoDato}>{receta.porciones_base} porc.</Text>
+            </View>
+          </View>
+          {extra ? (
+            <Text style={estilos.motivoDestacada} numberOfLines={2}>
+              {extra}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (variante === 'mini') {
+    return (
+      <Pressable onPress={onPress} style={estilos.mini} accessibilityRole="button" accessibilityLabel={etiquetaAccesible}>
+        <View style={estilos.fotoMini}>
+          {foto(StyleSheet.absoluteFill, 30)}
+          {insigniaVidrio(estilos.insigniaAbajo)}
+          {estrella}
+        </View>
+        <View style={estilos.cuerpoMini}>
+          <Text style={estilos.nombreMini} numberOfLines={2}>
+            {receta.nombre}
+          </Text>
+          <View style={estilos.meta}>
+            <Icono nombre="clock-circle-linear" size={14} color={colors.textoSuave} />
+            <Text style={estilos.textoMetaLista}>{receta.tiempo_min} min</Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
 
   if (variante === 'carrusel') {
     return (
@@ -285,5 +364,67 @@ const estilos = StyleSheet.create({
     lineHeight: 18,
     color: colors.textoSuave,
     marginTop: 4,
+  },
+  destacada: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: colors.superficie,
+    ...sombra,
+  },
+  fotoDestacada: {
+    height: 200,
+    backgroundColor: colors.sereno,
+  },
+  cuerpoDestacada: {
+    padding: espaciado.md,
+    minHeight: 120,
+  },
+  nombreDestacada: {
+    fontFamily: fuentes.titulo,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.texto,
+  },
+  filaDatos: {
+    flexDirection: 'row',
+    gap: espaciado.md,
+    marginTop: espaciado.sm,
+  },
+  textoDato: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.base,
+    color: colors.calidoOscuro,
+  },
+  motivoDestacada: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    lineHeight: 18,
+    color: colors.textoSuave,
+    marginTop: 6,
+  },
+  mini: {
+    width: 160,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: colors.superficie,
+  },
+  fotoMini: {
+    height: 112,
+    backgroundColor: colors.sereno,
+  },
+  insigniaAbajo: {
+    top: undefined,
+    bottom: espaciado.sm,
+  },
+  cuerpoMini: {
+    padding: espaciado.sm,
+    paddingBottom: 12,
+  },
+  nombreMini: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.base,
+    lineHeight: 19,
+    color: colors.texto,
+    minHeight: 38,
   },
 });

@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,7 +10,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from '../components/Icono';
+import { Mascota } from '../components/cocina/Mascota';
+import { AccionMascota } from '../constants/mascota';
+import { mostrarAviso } from '../lib/avisos';
 import * as ImagePicker from 'expo-image-picker';
 import {
   FORMULARIO_VACIO,
@@ -28,6 +30,7 @@ import { SelectorIngredienteReceta } from '../components/comunidad/SelectorIngre
 import { EstadoEnvio } from '../components/comunidad/EstadoEnvio';
 import { HojaInferior } from '../components/HojaInferior';
 import { MenuHoja, OpcionMenu } from '../components/MenuHoja';
+import { IconoCompat } from '../components/IconoCompat';
 import { VistaCargando, VistaError } from '../components/StateViews';
 import { colors, espaciado, fuentes, radios, tamanos, tipografia } from '../theme/theme';
 
@@ -38,6 +41,17 @@ interface Props {
 }
 
 const TITULOS = ['Lo básico', 'Ingredientes', 'Preparación', 'Detalles'];
+
+// Lo que la mascota hace y dice en cada paso
+function guia(paso: number, tieneFoto: boolean): { accion: AccionMascota; texto: string } {
+  if (paso === 0)
+    return tieneFoto
+      ? { accion: 'escribir', texto: 'Ponle nombre y cuéntanos de dónde viene tu receta.' }
+      : { accion: 'foto', texto: 'Empieza con una foto de tu platillo. Si no tienes, puedes seguir sin ella.' };
+  if (paso === 1) return { accion: 'lista', texto: 'Elige cada ingrediente de la lista. Así avisamos de alergias a quien la cocine.' };
+  if (paso === 2) return { accion: 'explicar', texto: 'Un paso a la vez, como se lo explicarías a alguien en tu cocina.' };
+  return { accion: 'revisar', texto: 'Ya casi. Revisa los detalles antes de compartirla.' };
+}
 
 type Hoja = 'foto' | 'salir' | 'ingrediente' | 'resultado' | null;
 
@@ -107,7 +121,7 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
     if (origen === 'camara') {
       const permiso = await ImagePicker.requestCameraPermissionsAsync();
       if (!permiso.granted) {
-        Alert.alert('Necesitamos tu cámara', 'Activa el permiso de cámara en los ajustes del teléfono.');
+        mostrarAviso('Necesitamos tu cámara', 'Activa el permiso de cámara en los ajustes del teléfono.', 'error');
         return;
       }
     }
@@ -143,7 +157,7 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
   ];
 
   const opcionesSalir: OpcionMenu[] = r.esEdicion
-    ? [{ texto: 'Descartar cambios', icono: 'close-circle-outline', peligro: true, onPress: onCerrar }]
+    ? [{ texto: 'Descartar cambios', descripcion: 'Tu receta se queda como estaba', icono: 'close-circle-outline', peligro: true, onPress: onCerrar }]
     : [
         {
           texto: 'Guardar borrador y salir',
@@ -188,6 +202,8 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
     if (resultado?.ok && resultado.id) onPublicada(resultado.id, r.esEdicion);
   };
 
+  const { accion, texto: textoGuia } = guia(paso, !!form.fotoUri);
+
   const idsUsados = form.ingredientes
     .filter((_, i) => i !== editando)
     .map((i) => i.ingrediente.id);
@@ -196,25 +212,32 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
     <SafeAreaView style={estilos.pantalla} edges={['top', 'bottom']}>
       <View style={estilos.encabezado}>
         <View style={estilos.filaTitulo}>
-          <Pressable onPress={alCerrar} hitSlop={10} accessibilityLabel="Cerrar">
-            <Ionicons name="close" size={26} color={colors.primario} />
+          <Pressable onPress={alCerrar} hitSlop={6} style={estilos.botonCerrar} accessibilityRole="button" accessibilityLabel="Cerrar">
+            <Icono nombre="close-linear" size={22} color={colors.primario} />
           </Pressable>
-          <Text style={estilos.titulo}>{r.esEdicion ? 'Editar receta' : 'Nueva receta'}</Text>
-          <Text style={[tipografia.chico, { width: 60, textAlign: 'right' }]}>
-            {r.esEdicion ? '' : 'Borrador'}
+          <Text style={estilos.titulo} accessibilityRole="header">
+            {r.esEdicion ? 'Editar receta' : 'Nueva receta'}
           </Text>
+          <View style={estilos.ladoDerecho}>
+            {!r.esEdicion && (
+              <View style={estilos.pildoraBorrador}>
+                <Icono nombre="bookmark-linear" size={13} color={colors.textoSuave} />
+                <Text style={estilos.textoPildora}>Borrador</Text>
+              </View>
+            )}
+          </View>
         </View>
         <View style={estilos.progreso}>
           {TITULOS.map((t, i) => (
             <View key={t} style={[estilos.segmento, i <= paso && estilos.segmentoActivo]} />
           ))}
         </View>
-        <Text style={tipografia.chico}>
-          Paso {paso + 1} de {TITULOS.length} · {TITULOS[paso]}
+        <Text style={estilos.textoPaso}>
+          Paso {paso + 1} de {TITULOS.length} · <Text style={estilos.nombrePaso}>{TITULOS[paso]}</Text>
         </Text>
         {r.borradorRecuperado && paso === 0 && (
           <View style={estilos.avisoBorrador}>
-            <Ionicons name="bookmark" size={14} color={colors.acentoOscuro} />
+            <Icono nombre="bookmark-linear" size={15} color={colors.acentoOscuro} />
             <Text style={estilos.textoBorrador}>Recuperamos tu borrador anterior.</Text>
           </View>
         )}
@@ -227,6 +250,14 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={estilos.guia}>
+            <Mascota accion={accion} tamano={116} />
+            <View style={estilos.globo}>
+              <View style={estilos.colaGlobo} />
+              <Text style={estilos.textoGlobo}>{textoGuia}</Text>
+            </View>
+          </View>
+
           {paso === 0 && <PasoBasico form={form} actualizar={actualizar} onFoto={() => setHoja('foto')} />}
           {paso === 1 && (
             <PasoIngredientes
@@ -258,10 +289,15 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
         </ScrollView>
 
         <View style={estilos.barra}>
-          {!!falta && <Text style={estilos.falta}>{falta}</Text>}
+          {!!falta && (
+            <View style={estilos.filaFalta}>
+              <Icono nombre="info-circle-linear" size={16} color={colors.textoSuave} />
+              <Text style={estilos.falta}>{falta}</Text>
+            </View>
+          )}
           <View style={estilos.filaBotones}>
             {paso > 0 && (
-              <Pressable onPress={() => irA(paso - 1)} style={[estilos.boton, estilos.botonAtras]}>
+              <Pressable onPress={() => irA(paso - 1)} style={[estilos.boton, estilos.botonAtras]} accessibilityRole="button">
                 <Text style={estilos.textoAtras}>Atrás</Text>
               </Pressable>
             )}
@@ -269,6 +305,8 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
               onPress={esUltimo ? publicar : () => irA(paso + 1)}
               disabled={!!falta || r.publicando}
               style={[estilos.boton, estilos.botonSiguiente, (!!falta || r.publicando) && estilos.apagado]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !!falta || r.publicando, busy: r.publicando }}
             >
               {r.publicando ? (
                 <ActivityIndicator color={colors.sobrePrimario} />
@@ -277,7 +315,7 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
                   <Text style={estilos.textoSiguiente}>
                     {esUltimo ? (r.esEdicion ? 'Guardar cambios' : 'Publicar') : 'Siguiente'}
                   </Text>
-                  <Ionicons name={esUltimo ? 'send' : 'arrow-forward'} size={16} color={colors.sobrePrimario} />
+                  <Icono nombre={esUltimo ? 'plain-linear' : 'arrow-right-linear'} size={18} color={colors.sobrePrimario} />
                 </>
               )}
             </Pressable>
@@ -286,12 +324,33 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
       </KeyboardAvoidingView>
 
       <MenuHoja visible={hoja === 'foto'} titulo="Foto de tu receta" opciones={opcionesFoto} onCerrar={() => setHoja(null)} />
-      <MenuHoja
-        visible={hoja === 'salir'}
-        titulo={r.esEdicion ? '¿Salir sin guardar?' : '¿Salir de tu receta?'}
-        opciones={opcionesSalir}
-        onCerrar={() => setHoja(null)}
-      />
+      <HojaInferior visible={hoja === 'salir'} onCerrar={() => setHoja(null)}>
+        <View style={estilos.salir}>
+          <Mascota accion="preocupado" tamano={140} />
+          <Text style={estilos.tituloSalir}>{r.esEdicion ? '¿Salir sin guardar?' : '¿Salir de tu receta?'}</Text>
+        </View>
+        <View style={estilos.grupoSalir}>
+          {opcionesSalir.map((o, i) => (
+            <Pressable
+              key={o.texto}
+              onPress={o.onPress}
+              style={({ pressed }) => [estilos.opcionSalir, i > 0 && estilos.separador, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
+            >
+              <View style={[estilos.iconoOpcion, o.peligro && { backgroundColor: colors.peligroSuave }]}>
+                <IconoCompat nombre={o.icono} size={20} color={o.peligro ? colors.peligro : colors.texto} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[estilos.textoOpcion, o.peligro && { color: colors.peligro }]}>{o.texto}</Text>
+                {!!o.descripcion && <Text style={estilos.descripcionOpcion}>{o.descripcion}</Text>}
+              </View>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable onPress={() => setHoja(null)} style={estilos.seguir} accessibilityRole="button">
+          <Text style={estilos.textoSeguir}>Seguir editando</Text>
+        </Pressable>
+      </HojaInferior>
       <SelectorIngredienteReceta
         visible={hoja === 'ingrediente'}
         existente={editando != null ? form.ingredientes[editando] : null}
@@ -304,6 +363,7 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
         {resultado?.ok ? (
           <EstadoEnvio
             tipo="exito"
+            accion="publicar"
             titulo={r.esEdicion ? '¡Cambios guardados!' : '¡Tu receta ya está en la comunidad!'}
             mensaje={
               r.esEdicion
@@ -315,6 +375,7 @@ export default function CrearRecetaScreen({ recetaId, onCerrar, onPublicada }: P
         ) : (
           <EstadoEnvio
             tipo="error"
+            accion="preocupado"
             titulo="No se pudo publicar"
             mensaje={resultado?.mensaje ?? 'Intenta de nuevo.'}
             onCerrar={() => setHoja(null)}
@@ -345,10 +406,74 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  botonCerrar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.superficie,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   titulo: {
     ...tipografia.titulo,
     fontSize: 21,
     color: colors.primario,
+  },
+  ladoDerecho: {
+    width: 96,
+    alignItems: 'flex-end',
+  },
+  pildoraBorrador: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.fondoHundido,
+    borderRadius: radios.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  textoPildora: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.mini,
+    color: colors.textoSuave,
+  },
+  textoPaso: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
+  },
+  nombrePaso: {
+    fontFamily: fuentes.negrita,
+    color: colors.texto,
+  },
+  guia: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+    marginBottom: espaciado.md,
+  },
+  globo: {
+    flex: 1,
+    backgroundColor: colors.superficie,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    padding: 14,
+    marginBottom: espaciado.md,
+  },
+  colaGlobo: {
+    position: 'absolute',
+    left: -6,
+    bottom: 0,
+    width: 14,
+    height: 14,
+    backgroundColor: colors.superficie,
+    transform: [{ skewX: '30deg' }],
+  },
+  textoGlobo: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 22,
+    color: colors.texto,
   },
   progreso: {
     flexDirection: 'row',
@@ -361,7 +486,7 @@ const estilos = StyleSheet.create({
     backgroundColor: colors.fondoHundido,
   },
   segmentoActivo: {
-    backgroundColor: colors.acento,
+    backgroundColor: colors.encabezado,
   },
   avisoBorrador: {
     flexDirection: 'row',
@@ -395,9 +520,17 @@ const estilos = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  filaFalta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
   falta: {
-    ...tipografia.chico,
-    textAlign: 'center',
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
+    flexShrink: 1,
   },
   filaBotones: {
     flexDirection: 'row',
@@ -407,8 +540,8 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    minHeight: 52,
+    gap: 8,
+    minHeight: 54,
     borderRadius: radios.pill,
   },
   botonAtras: {
@@ -429,6 +562,66 @@ const estilos = StyleSheet.create({
     color: colors.primario,
   },
   textoSiguiente: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.sobrePrimario,
+  },
+  salir: {
+    alignItems: 'center',
+    gap: espaciado.xs,
+    marginBottom: espaciado.md,
+  },
+  tituloSalir: {
+    ...tipografia.titulo,
+    fontSize: 22,
+    color: colors.primario,
+    textAlign: 'center',
+  },
+  grupoSalir: {
+    backgroundColor: colors.superficie,
+    borderRadius: radios.lg,
+    overflow: 'hidden',
+  },
+  opcionSalir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: espaciado.md,
+    paddingVertical: 14,
+    minHeight: 64,
+  },
+  separador: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borde,
+  },
+  iconoOpcion: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.fondoHundido,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textoOpcion: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.texto,
+  },
+  descripcionOpcion: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    color: colors.textoSuave,
+    marginTop: 2,
+  },
+  seguir: {
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radios.pill,
+    backgroundColor: colors.primario,
+    marginTop: espaciado.md,
+  },
+  textoSeguir: {
     fontFamily: fuentes.negrita,
     fontSize: tamanos.destacado,
     color: colors.sobrePrimario,

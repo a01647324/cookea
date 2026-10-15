@@ -1,943 +1,337 @@
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useAlbums } from '../hooks/useAlbums';
+import { RecetaGuardada, useRecetasGuardadas } from '../hooks/useRecetasGuardadas';
+import { SearchBar } from '../components/SearchBar';
+import { Esqueleto } from '../components/Esqueleto';
+import { VistaError } from '../components/StateViews';
+import { EstadoVacio } from '../components/EstadoVacio';
+import Icono, { NombreIcono } from '../components/Icono';
+import { CollageAlbum } from '../components/favoritos/CollageAlbum';
+import { TarjetaAlbumReceta } from '../components/favoritos/TarjetaAlbumReceta';
+import { HojaNombreColeccion } from '../components/favoritos/HojaNombreColeccion';
+import { AlbumConConteo } from '../types/database';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+type Estilo = { icono: NombreIcono; fondo: string; color: string };
 
-import {
-  SafeAreaView,
-} from 'react-native-safe-area-context';
+const ESTILO_ALBUM: Record<string, Estilo> = {
+  favoritos: { icono: 'heart-linear', fondo: colors.destacadoSuave, color: colors.destacadoIntenso },
+  hacer_despues: { icono: 'clock-circle-linear', fondo: colors.resaltadoSuave, color: colors.calidoOscuro },
+  ya_preparadas: { icono: 'check-circle-linear', fondo: colors.acentoSuave, color: colors.acentoIntenso },
+  propio: { icono: 'folder-linear', fondo: colors.calidoSuave, color: colors.calidoIntenso },
+};
 
-import {
-  useFocusEffect,
-  useNavigation,
-} from '@react-navigation/native';
-
-import {
-  Ionicons,
-} from '@expo/vector-icons';
-
-import {
-  useAlbums,
-} from '../hooks/useAlbums';
-
-import {
-  AlbumConConteo,
-} from '../types/database';
-
-import {
-  colors,
-  espaciado,
-  radios,
-  tipografia,
-} from '../theme/theme';
-
-
-function nombreVisible(
-  album: AlbumConConteo
-) {
-
-  if (
-    album.tipo ===
-    'ya_preparadas'
-  ) {
-    return 'Recetas pasadas';
-  }
-
+export function nombreVisible(album: AlbumConConteo) {
+  if (album.tipo === 'ya_preparadas') return 'Recetas pasadas';
+  if (album.tipo === 'hacer_despues') return 'Hacer después';
+  if (album.tipo === 'favoritos') return 'Favoritos';
   return album.nombre;
 }
 
-
-function iconoAlbum(
-  tipo: string
-) {
-
-  if (tipo === 'favoritos') {
-    return 'heart';
-  }
-
-  if (
-    tipo ===
-    'hacer_despues'
-  ) {
-    return 'time';
-  }
-
-  if (
-    tipo ===
-    'ya_preparadas'
-  ) {
-    return 'restaurant';
-  }
-
-  return 'folder';
-}
-
-
 export function FavoritosScreen() {
+  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
-  const navigation =
-    useNavigation<any>();
+  const { albumes, cargando, error, recargar, crearAlbum } = useAlbums();
+  const idsAlbumes = useMemo(() => albumes.map((a) => a.id), [albumes]);
+  const { porAlbum, recargar: recargarRecetas } = useRecetasGuardadas(idsAlbumes);
 
-
-  const {
-    albumes,
-    cargando,
-    error,
-    recargar,
-    crearAlbum,
-  } = useAlbums();
-
-
-  const [
-    modalVisible,
-    setModalVisible,
-  ] = React.useState(false);
-
-  const [
-    nombreNueva,
-    setNombreNueva,
-  ] = React.useState('');
-
-  const [
-    guardando,
-    setGuardando,
-  ] = React.useState(false);
-
+  const [busqueda, setBusqueda] = useState('');
+  const [creando, setCreando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [refrescando, setRefrescando] = useState(false);
 
   useFocusEffect(
-    React.useCallback(() => {
-
-      void recargar();
-
-    }, [recargar])
+    useCallback(() => {
+      recargar();
+      recargarRecetas();
+    }, [recargar, recargarRecetas])
   );
 
+  const buscar = (tipo: string) => albumes.find((a) => a.tipo === tipo);
+  const favoritos = buscar('favoritos');
+  const despues = buscar('hacer_despues');
+  const preparadas = buscar('ya_preparadas');
+  const propias = albumes.filter((a) => a.tipo === 'propio');
 
-  const favoritos =
-    albumes.find(
-      (album) =>
-        album.tipo ===
-        'favoritos'
-    );
+  const resultados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+    if (!texto) return [];
+    const vistas = new Map<number, { receta: RecetaGuardada; albumes: string[] }>();
+    albumes.forEach((album) => {
+      (porAlbum[album.id] ?? []).forEach((r) => {
+        if (!r.nombre.toLowerCase().includes(texto)) return;
+        const actual = vistas.get(r.id) ?? { receta: r, albumes: [] };
+        actual.albumes.push(nombreVisible(album));
+        vistas.set(r.id, actual);
+      });
+    });
+    return [...vistas.values()];
+  }, [busqueda, albumes, porAlbum]);
 
-
-  const predeterminados =
-    albumes.filter(
-      (album) =>
-        album.tipo ===
-          'favoritos' ||
-        album.tipo ===
-          'hacer_despues' ||
-        album.tipo ===
-          'ya_preparadas'
-    );
-
-
-  const propio =
-    albumes.filter(
-      (album) =>
-        album.tipo ===
-        'propio'
-    );
-
-
-  function abrirAlbum(
-    album: AlbumConConteo
-  ) {
-
-    navigation.navigate(
-      'ColeccionDetalle',
-      {
-        albumId: album.id,
-        nombre:
-          nombreVisible(album),
-        tipo: album.tipo,
-      }
-    );
+  function abrir(album: AlbumConConteo, abrirSelector = false) {
+    navigation.navigate('ColeccionDetalle', {
+      albumId: album.id,
+      nombre: nombreVisible(album),
+      tipo: album.tipo,
+      abrirSelector,
+    });
   }
 
-
-  async function guardarColeccion() {
-
+  async function crear(nombre: string) {
     setGuardando(true);
-
-    const ok =
-      await crearAlbum(
-        nombreNueva
-      );
-
+    const album = await crearAlbum(nombre);
     setGuardando(false);
-
-    if (ok) {
-
-      setNombreNueva('');
-
-      setModalVisible(false);
+    if (album) {
+      setCreando(false);
+      navigation.navigate('ColeccionDetalle', {
+        albumId: album.id,
+        nombre: album.nombre,
+        tipo: 'propio',
+        abrirSelector: true,
+      });
     }
   }
 
-
-  function agregarFavorito() {
-
-    if (!favoritos) {
-      return;
+  async function refrescar() {
+    setRefrescando(true);
+    try {
+      await Promise.all([recargar(), recargarRecetas()]);
+    } finally {
+      setRefrescando(false);
     }
+  }
 
-    navigation.navigate(
-      'ColeccionDetalle',
-      {
-        albumId:
-          favoritos.id,
-
-        nombre:
-          'Favoritos',
-
-        tipo:
-          favoritos.tipo,
-
-        abrirSelector: true,
-      }
+  function collage(album: AlbumConConteo | undefined, alto: number) {
+    if (!album) return null;
+    const estilo = ESTILO_ALBUM[album.tipo] ?? ESTILO_ALBUM.propio;
+    const fotos = (porAlbum[album.id] ?? []).filter((r) => r.foto_url).slice(0, 3).map((r) => r.foto_url);
+    return (
+      <CollageAlbum
+        nombre={nombreVisible(album)}
+        cantidad={album.cantidad_recetas}
+        fotos={fotos}
+        alto={alto}
+        {...estilo}
+        onPress={() => abrir(album)}
+      />
     );
   }
-
 
   return (
-
-    <SafeAreaView
-      style={estilos.pantalla}
-      edges={['top']}
-    >
-
+    <View style={estilos.pantalla}>
       <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          estilos.contenido
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[estilos.contenido, { paddingTop: insets.top + espaciado.sm }]}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={colors.primario} colors={[colors.primario]} />
         }
       >
-
-        {/* HEADER */}
-
-        <View style={estilos.header}>
-
-          <Pressable
-            style={
-              estilos.botonAtras
-            }
-            onPress={() =>
-              navigation.goBack()
-            }
-          >
-
-            <Ionicons
-              name="arrow-back"
-              size={24}
-              color={
-                colors.textoPrincipal
-              }
-            />
-
+        <View style={estilos.superior}>
+          <Pressable onPress={() => navigation.goBack()} style={estilos.botonBlanco} accessibilityLabel="Regresar">
+            <Icono nombre="arrow-left-linear" size={22} color={colors.texto} />
           </Pressable>
-
-
-          <Text
-            style={
-              estilos.tituloPrincipal
-            }
+          <Pressable
+            onPress={() => favoritos && abrir(favoritos, true)}
+            style={estilos.botonVerde}
+            accessibilityLabel="Agregar recetas a favoritos"
           >
-            Mis recetas
-          </Text>
-
+            <Icono nombre="add-linear" size={22} color={colors.sobreEncabezado} />
+          </Pressable>
         </View>
 
+        <Text style={estilos.titulo}>Mis recetas</Text>
+        <Text style={estilos.descripcion}>Guarda tus recetas y ordénalas en colecciones.</Text>
 
-        <Text
-          style={
-            estilos.descripcion
-          }
-        >
-          Guarda tus recetas favoritas
-          y organízalas en colecciones.
-        </Text>
+        <View style={estilos.buscador}>
+          <SearchBar placeholder="Busca en tus recetas" onBuscar={setBusqueda} />
+        </View>
 
-
-        {/* AGREGAR FAVORITO */}
-
-        <Pressable
-          style={
-            estilos.botonFavorito
-          }
-          onPress={
-            agregarFavorito
-          }
-        >
-
-          <Ionicons
-            name="heart"
-            size={20}
-            color={
-              colors.textoSobreColor
-            }
-          />
-
-          <Text
-            style={
-              estilos.textoBotonFavorito
-            }
-          >
-            Agregar favorito
-          </Text>
-
-        </Pressable>
-
-
-        {cargando ? (
-
-          <ActivityIndicator
-            size="large"
-            color={
-              colors.oliva
-            }
-            style={{
-              marginTop:
-                espaciado.xl,
-            }}
-          />
-
-        ) : (
-
-          <>
-
-            {error && (
-
-              <Text
-                style={
-                  estilos.error
-                }
-              >
-                {error}
-              </Text>
-
-            )}
-
-
-            {/* PREDETERMINADOS */}
-
-            <Text
-              style={
-                estilos.tituloSeccion
-              }
-            >
-              MIS RECETAS
+        {busqueda.trim() ? (
+          <View style={{ marginTop: espaciado.lg }}>
+            <Text style={[estilos.tituloSeccion, estilos.margen, { marginBottom: espaciado.lg }]}>
+              {resultados.length} {resultados.length === 1 ? 'resultado' : 'resultados'}
             </Text>
-
-
-            <View
-              style={
-                estilos.grid
-              }
-            >
-
-              {predeterminados.map(
-                (album) => (
-
-                  <Pressable
-                    key={album.id}
-                    style={
-                      estilos.tarjeta
-                    }
-                    onPress={() =>
-                      abrirAlbum(
-                        album
-                      )
-                    }
-                  >
-
-                    <View
-                      style={
-                        estilos.iconoContenedor
-                      }
-                    >
-
-                      <Ionicons
-                        name={
-                          iconoAlbum(
-                            album.tipo
-                          ) as any
-                        }
-                        size={30}
-                        color={
-                          colors
-                            .olivaOscuro
-                        }
-                      />
-
-                    </View>
-
-
-                    <Text
-                      style={
-                        estilos.nombreAlbum
-                      }
-                    >
-                      {
-                        nombreVisible(
-                          album
-                        )
-                      }
-                    </Text>
-
-
-                    <Text
-                      style={
-                        estilos.conteo
-                      }
-                    >
-                      {
-                        album
-                          .cantidad_recetas
-                      }{' '}
-                      {album
-                        .cantidad_recetas ===
-                      1
-                        ? 'receta'
-                        : 'recetas'}
-                    </Text>
-
-                  </Pressable>
-
-                )
-              )}
-
-            </View>
-
-
-            {/* COLECCIONES */}
-
-            <View
-              style={
-                estilos.encabezadoColecciones
-              }
-            >
-
-              <Text
-                style={
-                  estilos.tituloSeccion
-                }
-              >
-                MIS COLECCIONES
-              </Text>
-
-
-              <Pressable
-                onPress={() =>
-                  setModalVisible(
-                    true
-                  )
-                }
-              >
-
-                <Text
-                  style={
-                    estilos.crearTexto
-                  }
-                >
-                  + Crear
-                </Text>
-
-              </Pressable>
-
-            </View>
-
-
-            {propio.length ===
-            0 ? (
-
-              <View
-                style={
-                  estilos.vacio
-                }
-              >
-
-                <Ionicons
-                  name="folder-open-outline"
-                  size={36}
-                  color={
-                    colors
-                      .textoSecundario
-                  }
-                />
-
-                <Text
-                  style={
-                    estilos.textoVacio
-                  }
-                >
-                  Todavía no tienes
-                  colecciones.
-                </Text>
-
-              </View>
-
+            {resultados.length === 0 ? (
+              <EstadoVacio
+                imagen={require('../assets/images/vacios/olla_vacia.webp')}
+                titulo={`No tienes guardada «${busqueda.trim()}»`}
+                texto="Búscala en el recetario y guárdala con la estrella."
+                accion={{ texto: 'Ir al recetario', onPress: () => navigation.navigate('Recetario') }}
+              />
             ) : (
-
-              <View
-                style={
-                  estilos.grid
-                }
-              >
-
-                {propio.map(
-                  (album) => (
-
-                    <Pressable
-                      key={
-                        album.id
-                      }
-                      style={
-                        estilos.tarjeta
-                      }
-                      onPress={() =>
-                        abrirAlbum(
-                          album
-                        )
-                      }
-                    >
-
-                      <View
-                        style={
-                          estilos.iconoContenedor
-                        }
-                      >
-
-                        <Ionicons
-                          name="folder"
-                          size={30}
-                          color={
-                            colors
-                              .terracota
-                          }
-                        />
-
-                      </View>
-
-
-                      <Text
-                        style={
-                          estilos.nombreAlbum
-                        }
-                        numberOfLines={
-                          2
-                        }
-                      >
-                        {album.nombre}
-                      </Text>
-
-
-                      <Text
-                        style={
-                          estilos.conteo
-                        }
-                      >
-                        {
-                          album
-                            .cantidad_recetas
-                        }{' '}
-                        recetas
-                      </Text>
-
-                    </Pressable>
-
-                  )
-                )}
-
-              </View>
-
+              resultados.map(({ receta, albumes: en }, i) => (
+                <TarjetaAlbumReceta
+                  key={receta.id}
+                  receta={receta}
+                  indice={i}
+                  detalle={en.join(', ')}
+                  onAbrir={() => navigation.navigate('RecetaDetalle', { recetaId: receta.id })}
+                />
+              ))
             )}
+          </View>
+        ) : cargando && albumes.length === 0 ? (
+          <View style={estilos.margen}>
+            <Esqueleto ancho="100%" alto={150} radio={18} estilo={{ marginTop: espaciado.lg }} />
+            <View style={estilos.fila}>
+              <Esqueleto ancho="48%" alto={110} radio={18} />
+              <Esqueleto ancho="48%" alto={110} radio={18} />
+            </View>
+          </View>
+        ) : error && albumes.length === 0 ? (
+          <VistaError mensaje="No pudimos cargar tus recetas guardadas." onReintentar={recargar} />
+        ) : (
+          <>
+            <View style={[estilos.margen, { marginTop: espaciado.lg }]}>{collage(favoritos, 150)}</View>
+            <View style={[estilos.fila, estilos.margen]}>
+              <View style={estilos.mitad}>{collage(despues, 110)}</View>
+              <View style={estilos.mitad}>{collage(preparadas, 110)}</View>
+            </View>
 
+            <View style={[estilos.encabezadoSeccion, estilos.margen]}>
+              <Text style={estilos.tituloSeccion}>Mis colecciones</Text>
+              <Pressable onPress={() => setCreando(true)} hitSlop={10} style={estilos.crear}>
+                <Icono nombre="add-linear" size={16} color={colors.acentoIntenso} />
+                <Text style={estilos.textoCrear}>Crear</Text>
+              </Pressable>
+            </View>
+
+            <View style={[estilos.cuadricula, estilos.margen]}>
+              {propias.map((album) => (
+                <View key={album.id} style={estilos.mitad}>
+                  {collage(album, 110)}
+                </View>
+              ))}
+              <Pressable onPress={() => setCreando(true)} style={[estilos.mitad, estilos.nueva]}>
+                <Icono nombre="add-folder-linear" size={28} color={colors.textoSuave} />
+                <Text style={estilos.textoNueva}>Nueva colección</Text>
+              </Pressable>
+            </View>
           </>
-
         )}
-
       </ScrollView>
 
-
-      {/* MODAL NUEVA COLECCIÓN */}
-
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setModalVisible(false)
-        }
-      >
-
-        <View
-          style={
-            estilos.modalFondo
-          }
-        >
-
-          <View
-            style={
-              estilos.modalTarjeta
-            }
-          >
-
-            <Text
-              style={
-                tipografia.subtitulo
-              }
-            >
-              Crear colección
-            </Text>
-
-
-            <TextInput
-              value={
-                nombreNueva
-              }
-              onChangeText={
-                setNombreNueva
-              }
-              placeholder="Ej. Desayunos con avena"
-              placeholderTextColor={
-                colors
-                  .textoSecundario
-              }
-              style={
-                estilos.input
-              }
-              maxLength={40}
-            />
-
-
-            <View
-              style={
-                estilos.modalBotones
-              }
-            >
-
-              <Pressable
-                style={
-                  estilos.botonCancelar
-                }
-                onPress={() => {
-
-                  setNombreNueva(
-                    ''
-                  );
-
-                  setModalVisible(
-                    false
-                  );
-                }}
-              >
-
-                <Text
-                  style={
-                    estilos.textoCancelar
-                  }
-                >
-                  Cancelar
-                </Text>
-
-              </Pressable>
-
-
-              <Pressable
-                style={
-                  estilos.botonCrear
-                }
-                disabled={
-                  guardando
-                }
-                onPress={() =>
-                  void guardarColeccion()
-                }
-              >
-
-                <Text
-                  style={
-                    estilos.textoCrear
-                  }
-                >
-                  {guardando
-                    ? 'Creando...'
-                    : 'Crear'}
-                </Text>
-
-              </Pressable>
-
-            </View>
-
-          </View>
-
-        </View>
-
-      </Modal>
-
-    </SafeAreaView>
-
+      <HojaNombreColeccion
+        visible={creando}
+        titulo="Nueva colección"
+        textoBoton="Crear"
+        guardando={guardando}
+        error={error}
+        onGuardar={crear}
+        onCerrar={() => setCreando(false)}
+      />
+    </View>
   );
 }
 
-
-const estilos =
-  StyleSheet.create({
-
-    pantalla: {
-      flex: 1,
-      backgroundColor:
-        colors.background,
-    },
-
-    contenido: {
-      padding:
-        espaciado.md,
-      paddingBottom:
-        espaciado.xl,
-    },
-
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom:
-        espaciado.sm,
-    },
-
-    botonAtras: {
-      width: 44,
-      height: 44,
-      alignItems: 'center',
-      justifyContent:
-        'center',
-      marginRight:
-        espaciado.sm,
-    },
-
-    tituloPrincipal: {
-      ...tipografia.titulo,
-      fontSize: 24,
-    },
-
-    descripcion: {
-      color:
-        colors.textoSecundario,
-      fontSize: 14,
-      marginBottom:
-        espaciado.md,
-    },
-
-    botonFavorito: {
-      backgroundColor:
-        colors.terracota,
-      borderRadius:
-        radios.lg,
-      paddingVertical: 14,
-      paddingHorizontal:
-        espaciado.md,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent:
-        'center',
-      gap: 8,
-      marginBottom:
-        espaciado.lg,
-    },
-
-    textoBotonFavorito: {
-      color:
-        colors.textoSobreColor,
-      fontWeight: '700',
-      fontSize: 15,
-    },
-
-    tituloSeccion: {
-      fontWeight: '700',
-      color:
-        colors.textoPrincipal,
-      fontSize: 14,
-      letterSpacing: 0.5,
-      marginBottom:
-        espaciado.md,
-    },
-
-    grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent:
-        'space-between',
-    },
-
-    tarjeta: {
-      width: '48%',
-      minHeight: 145,
-      backgroundColor:
-        colors.surfaceMuted,
-      borderRadius:
-        radios.lg,
-      padding:
-        espaciado.md,
-      marginBottom:
-        espaciado.md,
-      justifyContent:
-        'space-between',
-    },
-
-    iconoContenedor: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor:
-        colors.background,
-      alignItems: 'center',
-      justifyContent:
-        'center',
-      marginBottom:
-        espaciado.sm,
-    },
-
-    nombreAlbum: {
-      color:
-        colors.textoPrincipal,
-      fontWeight: '700',
-      fontSize: 15,
-    },
-
-    conteo: {
-      color:
-        colors.textoSecundario,
-      fontSize: 12,
-      marginTop:
-        espaciado.xs,
-    },
-
-    encabezadoColecciones: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-      alignItems: 'center',
-      marginTop:
-        espaciado.md,
-    },
-
-    crearTexto: {
-      color:
-        colors.olivaOscuro,
-      fontWeight: '700',
-      marginBottom:
-        espaciado.md,
-    },
-
-    vacio: {
-      backgroundColor:
-        colors.surface,
-      borderRadius:
-        radios.lg,
-      padding:
-        espaciado.lg,
-      alignItems:
-        'center',
-    },
-
-    textoVacio: {
-      color:
-        colors.textoSecundario,
-      textAlign: 'center',
-      marginTop:
-        espaciado.sm,
-    },
-
-    error: {
-      color:
-        colors.error,
-      marginBottom:
-        espaciado.md,
-    },
-
-    modalFondo: {
-      flex: 1,
-      backgroundColor:
-        'rgba(0,0,0,0.35)',
-      justifyContent:
-        'center',
-      padding:
-        espaciado.lg,
-    },
-
-    modalTarjeta: {
-      backgroundColor:
-        colors.surface,
-      borderRadius:
-        radios.lg,
-      padding:
-        espaciado.lg,
-    },
-
-    input: {
-      backgroundColor:
-        colors.background,
-      borderWidth: 1,
-      borderColor:
-        colors.borde,
-      borderRadius:
-        radios.md,
-      paddingHorizontal:
-        espaciado.md,
-      paddingVertical: 12,
-      color:
-        colors.textoPrincipal,
-      fontSize: 16,
-      marginTop:
-        espaciado.md,
-    },
-
-    modalBotones: {
-      flexDirection: 'row',
-      justifyContent:
-        'flex-end',
-      marginTop:
-        espaciado.lg,
-      gap: 10,
-    },
-
-    botonCancelar: {
-      paddingHorizontal:
-        espaciado.md,
-      paddingVertical: 12,
-    },
-
-    textoCancelar: {
-      color:
-        colors.textoSecundario,
-      fontWeight: '600',
-    },
-
-    botonCrear: {
-      backgroundColor:
-        colors.oliva,
-      borderRadius:
-        radios.md,
-      paddingHorizontal:
-        espaciado.lg,
-      paddingVertical: 12,
-    },
-
-    textoCrear: {
-      color:
-        colors.textoSobreColor,
-      fontWeight: '700',
-    },
-
-  });
+const estilos = StyleSheet.create({
+  pantalla: {
+    flex: 1,
+    backgroundColor: colors.fondo,
+  },
+  contenido: {
+    paddingBottom: 120,
+  },
+  margen: {
+    paddingHorizontal: espaciado.md,
+  },
+  superior: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: espaciado.md,
+  },
+  botonBlanco: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.superficie,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  botonVerde: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.encabezado,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titulo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 31,
+    lineHeight: 39,
+    color: colors.texto,
+    paddingHorizontal: espaciado.md,
+    marginTop: espaciado.md,
+  },
+  descripcion: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 22,
+    color: colors.textoSuave,
+    paddingHorizontal: espaciado.md,
+    marginTop: 2,
+  },
+  buscador: {
+    paddingHorizontal: espaciado.md,
+    marginTop: espaciado.md,
+  },
+  fila: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: espaciado.md,
+  },
+  mitad: {
+    width: '48%',
+  },
+  encabezadoSeccion: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: espaciado.lg,
+    marginBottom: espaciado.sm,
+  },
+  tituloSeccion: {
+    fontFamily: fuentes.titulo,
+    fontSize: 20,
+    lineHeight: 27,
+    color: colors.texto,
+    marginBottom: espaciado.sm,
+  },
+  crear: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  textoCrear: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.cuerpo,
+    color: colors.acentoIntenso,
+  },
+  cuadricula: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: espaciado.md,
+  },
+  nueva: {
+    height: 110,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.textoTenue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  textoNueva: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.chico,
+    color: colors.textoSuave,
+  },
+});

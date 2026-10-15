@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icono, { NombreIcono } from '../components/Icono';
 import { colors, fuentes, tamanos } from '../theme/theme';
@@ -12,6 +13,20 @@ const ICONOS: Record<string, NombreIcono> = {
   Comunidad: 'users-group-rounded-linear',
   Cuenta: 'user-circle-linear',
 };
+
+// Accesos directos: "Recetas" y "Alacena" abren pantallas que viven en la pila de Inicio
+const DESTINOS: Record<string, string> = {
+  Recetas: 'Recetario',
+  Alacena: 'Alacena',
+  Inicio: 'Home',
+};
+
+// Qué botón se ve activo según la pantalla abierta dentro de Inicio
+function activaDeInicio(pantalla: string) {
+  if (pantalla === 'Recetario') return 'Recetas';
+  if (pantalla === 'Alacena' || pantalla === 'QueCocino') return 'Alacena';
+  return 'Inicio';
+}
 
 export default function BarraPestanas({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -32,10 +47,16 @@ export default function BarraPestanas({ state, descriptors, navigation }: Bottom
 
   if (tecladoAbierto || ocultaPorPantalla) return null;
 
+  const rutaActual = state.routes[state.index];
+  const activa =
+    rutaActual.name === 'Inicio'
+      ? activaDeInicio(getFocusedRouteNameFromRoute(rutaActual) ?? 'Home')
+      : rutaActual.name;
+
   return (
     <View style={[estilos.barra, { paddingBottom: Math.max(insets.bottom, espacioInferior) }]}>
       {state.routes.map((ruta, indice) => {
-        const enfocada = state.index === indice;
+        const enfocada = activa === ruta.name;
         const { options } = descriptors[ruta.key];
         const etiqueta = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : ruta.name;
         const icono = ICONOS[ruta.name] ?? 'home-2-linear';
@@ -46,9 +67,10 @@ export default function BarraPestanas({ state, descriptors, navigation }: Bottom
             target: ruta.key,
             canPreventDefault: true,
           });
-          if (!enfocada && !evento.defaultPrevented) {
-            navigation.navigate(ruta.name, ruta.params);
-          }
+          if (enfocada || evento.defaultPrevented) return;
+          const pantalla = DESTINOS[ruta.name];
+          if (pantalla) navigation.navigate('Inicio', { screen: pantalla });
+          else navigation.navigate(ruta.name, ruta.params);
         };
 
         return (

@@ -1,6 +1,7 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { colors, espaciado, radios } from "../theme/theme";
-import { Alergeno } from "../types/database";
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Icono from '../components/Icono';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
+import { Alergeno } from '../types/database';
 
 type Props = {
   alergenos: Alergeno[];
@@ -9,86 +10,84 @@ type Props = {
   deshabilitado?: boolean;
 };
 
-// ListaAlergenos: la lista de alérgenos para marcar y desmarcar.
-// Basada en la lista de screens/alergias.tsx: cada alérgeno es una fila
-// completa que se puede tocar, con un cuadro y una ✓ cuando está marcado.
-// (clase) Componente declarado como función que recibe props
-export default function ListaAlergenos({
-  alergenos,
-  seleccionados,
-  onAlternar,
-  deshabilitado = false,
-}: Props) {
+// ListaAlergenos: opciones para marcar y desmarcar, como pastillas que se acomodan solas.
+// También la usan los selectores de ingredientes y electrodomésticos.
+export default function ListaAlergenos({ alergenos, seleccionados, onAlternar, deshabilitado = false }: Props) {
   return (
     <View style={styles.lista}>
-      {/* (clase) .map para dibujar una fila por cada alérgeno */}
       {alergenos.map((alergeno) => {
         const marcado = seleccionados.has(alergeno.id);
-
         return (
-          <TouchableOpacity
+          <Pressable
             key={alergeno.id}
-            style={[styles.fila, marcado && styles.filaMarcada]}
+            style={({ pressed }) => [
+              styles.chip,
+              marcado && styles.chipMarcado,
+              deshabilitado && styles.inactivo,
+              pressed && { opacity: 0.85 },
+            ]}
             onPress={() => onAlternar(alergeno.id)}
             disabled={deshabilitado}
-            // (nuevo) El lector de pantalla dice "casilla, marcada" o "sin marcar"
             accessibilityRole="checkbox"
             accessibilityState={{ checked: marcado, disabled: deshabilitado }}
             accessibilityLabel={alergeno.nombre}
           >
             <View style={[styles.casilla, marcado && styles.casillaMarcada]}>
-              {marcado && <Text style={styles.palomita}>✓</Text>}
+              {marcado && <Icono nombre="check-linear" size={14} color={colors.encabezado} />}
             </View>
-            <Text style={styles.nombre}>{alergeno.nombre}</Text>
-          </TouchableOpacity>
+            <Text style={[styles.nombre, marcado && styles.nombreMarcado]}>{alergeno.nombre}</Text>
+          </Pressable>
         );
       })}
     </View>
   );
 }
 
-// (clase) Estilos al final del archivo. Para cambiar el diseño, solo se toca esto.
 const styles = StyleSheet.create({
   lista: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: espaciado.sm,
   },
-  fila: {
-    minHeight: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-    borderWidth: 1,
+  chip: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 8,
+    paddingRight: 16,
+    borderRadius: radios.pill,
+    borderWidth: 1.5,
     borderColor: colors.borde,
-    borderRadius: radios.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.superficie,
   },
-  filaMarcada: {
-    borderColor: colors.botonPrincipal,
-    borderWidth: 2,
+  chipMarcado: {
+    backgroundColor: colors.encabezado,
+    borderColor: colors.encabezado,
+  },
+  inactivo: {
+    opacity: 0.5,
   },
   casilla: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 2,
-    borderColor: colors.textoSecundario,
-    borderRadius: radios.sm,
-    marginRight: espaciado.md,
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: colors.borde,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   casillaMarcada: {
-    backgroundColor: colors.botonPrincipal,
-    borderColor: colors.botonPrincipal,
-  },
-  palomita: {
-    color: colors.textoSobreColor,
-    fontSize: 18,
-    fontWeight: "700",
+    backgroundColor: colors.superficie,
+    borderColor: colors.superficie,
   },
   nombre: {
-    flex: 1,
-    fontSize: 17,
-    color: colors.textoPrincipal,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.cuerpo,
+    color: colors.texto,
+  },
+  nombreMarcado: {
+    fontFamily: fuentes.negrita,
+    color: colors.sobreEncabezado,
   },
 });

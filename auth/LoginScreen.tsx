@@ -1,59 +1,48 @@
 import { consumirCorreoAcceso } from './correoAcceso';
 import { useFocusEffect } from '@react-navigation/native';
 import styles from './estilosAcceso';
-import { supabase } from "../lib/supabase";
-import { colors } from "../theme/theme";
-import CampoFormulario from "./CampoFormulario";
-import { esCorreoValido, normalizarCorreo } from "./validaciones";
-import { useCallback, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ImageBackground,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TextInput,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { supabase } from '../lib/supabase';
+import CampoFormulario from './CampoFormulario';
+import AvisoFormulario from '../perfil/AvisoFormulario';
+import { esCorreoValido, normalizarCorreo } from './validaciones';
+import { fondo } from '../constants/fondos';
+import { useCallback, useRef, useState } from 'react';
+import { View, Text, Pressable, ImageBackground, Image, KeyboardAvoidingView, Platform, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../theme/theme';
 
-// El logo recortado tiene proporción ~3.94:1 (ancho:alto).
-// Lo hacemos responsivo pero más conservador que antes, para que no se
-// coma el espacio de arriba (status bar / notch) ni empuje la tarjeta.
-
-// (clase) Componente declarado como funcion y navigation que recibe de React Navigation
 export default function LoginScreen({ navigation }: any) {
-  // (clase) Un useState por cada campo del formulario
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  // Espacio seguro arriba (status bar / notch) para que el logo no
-  // quede pegado o encimado con la barra de estado del teléfono.
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const insets = useSafeAreaInsets();
 
-  // (clase) para mostrar el ActivityIndicator y no mandar el login dos veces
   const [cargando, setCargando] = useState(false);
   const bloqueo = useRef(false);
   const campoCorreo = useRef<TextInput>(null);
   const campoClave = useRef<TextInput>(null);
   const [intentado, setIntentado] = useState(false);
-  const errorCorreo = intentado && !esCorreoValido(normalizarCorreo(email)) ? "Escribe un correo válido, como nombre@correo.com." : "";
-  const errorClave = intentado && password === "" ? "Escribe tu contraseña." : "";
-  const [aviso, setAviso] = useState("");
+  const errorCorreo = intentado && !esCorreoValido(normalizarCorreo(email)) ? 'Escribe un correo válido, como nombre@correo.com.' : '';
+  const errorClave = intentado && password === '' ? 'Escribe tu contraseña.' : '';
+  const [aviso, setAviso] = useState('');
+  const [sinConfirmar, setSinConfirmar] = useState(false);
 
-  useFocusEffect(useCallback(() => {
-    const correo = consumirCorreoAcceso();
-    if (correo) { setEmail(correo); setPassword(''); setAviso(''); }
-  }, []));
+  useFocusEffect(
+    useCallback(() => {
+      const correo = consumirCorreoAcceso();
+      if (correo) {
+        setEmail(correo);
+        setPassword('');
+        setAviso('');
+      }
+    }, [])
+  );
 
   async function iniciarSesion() {
     if (bloqueo.current) return;
-    setAviso("");
+    setAviso('');
+    setSinConfirmar(false);
     setIntentado(true);
-    // (clase) Validaciones simples antes de llamar al servidor
-    if (email.trim() === "" || password === "") {
+    if (email.trim() === '' || password === '') {
       (!email.trim() ? campoCorreo : campoClave).current?.focus();
       return;
     }
@@ -65,136 +54,133 @@ export default function LoginScreen({ navigation }: any) {
     bloqueo.current = true;
     setCargando(true);
 
-    // (clase) async/await con try/catch/finally para "fail gracefully"
     try {
-      // (nuevo) signInWithPassword es el equivalente de signInWithEmailAndPassword.
-      //
-      // DIFERENCIA IMPORTANTE CON FIREBASE:
-      // En Firebase, si el login fallaba, la función LANZABA el error y lo
-      // atrapábamos con .catch (o con el catch del try).
-      // Supabase NO lanza el error: siempre regresa un objeto { data, error }.
-      // Por eso aquí tenemos que revisar nosotros mismos `if (error)`.
-      // El catch de abajo solo atrapa cosas inesperadas (por ejemplo, sin internet).
+      // Supabase no lanza el error: siempre regresa { data, error }
       const { error } = await supabase.auth.signInWithPassword({
         email: normalizarCorreo(email),
         password: password,
       });
 
       if (error) {
-        // (clase) Como con error.code de Firebase ("auth/missing-password"),
-        // revisamos el código para dar un mensaje claro.
-        // (nuevo) Los códigos de Supabase son distintos a los de Firebase.
         switch (error.code) {
-          case "email_not_confirmed":
-            setAviso("Confirma tu correo antes de iniciar sesión");
+          case 'email_not_confirmed':
+            setAviso('Tu cuenta aún no está confirmada. Escribe el código que te enviamos por correo.');
+            setSinConfirmar(true);
             break;
-          case "invalid_credentials":
-            // Mensaje genérico a propósito: no decimos si falló el correo o la
-            // contraseña, para no revelar qué correos están registrados.
-            setAviso("Correo o contraseña incorrectos");
+          case 'invalid_credentials':
+            // Mensaje genérico a propósito, para no revelar qué correos están registrados
+            setAviso('Correo o contraseña incorrectos.');
             break;
-          case "over_request_rate_limit":
-            setAviso("Demasiados intentos. Espera un momento e intenta de nuevo.");
+          case 'over_request_rate_limit':
+            setAviso('Demasiados intentos. Espera un momento e intenta de nuevo.');
             break;
           default:
-            setAviso("No se pudo iniciar sesión. Intenta de nuevo.");
+            setAviso('No se pudo iniciar sesión. Intenta de nuevo.');
         }
         return;
       }
-
-      // Si todo salió bien NO navegamos a mano: useSession detecta la nueva
-      // sesión con onAuthStateChange y App.tsx muestra Home solo.
+      // Si salió bien no navegamos: useSession detecta la sesión y App.tsx cambia solo
     } catch {
-      setAviso("Ocurrió un error inesperado. Revisa tu conexión.");
+      setAviso('Ocurrió un error inesperado. Revisa tu conexión.');
     } finally {
-      // (clase) El finally siempre corre: apagamos el indicador de carga
       bloqueo.current = false;
       setCargando(false);
     }
   }
 
   return (
-    <ImageBackground
-      // Coloca cookea-background.png en assets/images/ del proyecto
-      source={require("../assets/images/cookea-background-login.png")}
-      style={styles.fondo}
-      resizeMode="cover"
-    >
-      <Image source={require("../assets/images/cookea-logo.png")} resizeMode="contain" style={{ position: "absolute", top: insets.top + 12, alignSelf: "center", width: 180, height: 46 }} />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView style={styles.flex}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingTop: insets.top + 76, paddingBottom: insets.bottom + 76, justifyContent: "center",
-            },
-          ]}
+    <ImageBackground source={fondo.acceso} style={styles.fondo} resizeMode="cover">
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 }]}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Tarjeta sólida verde salvia, como en el mock */}
-          <View style={[styles.card, { padding: 16 }]}>
-            {aviso !== "" && <Text style={styles.aviso} accessibilityLiveRegion="polite">{aviso}</Text>}
-            <Text style={[styles.titulo, { fontSize: 26, lineHeight: 34, marginBottom: 8 }]} accessibilityRole="header">Iniciar sesión</Text>
-            <Text style={[styles.descripcion, { marginBottom: 16 }]}>Entra con tu correo y contraseña.</Text>
+          <Image source={require('../assets/images/cookea-logo.png')} resizeMode="contain" style={styles.logo} />
+          <Text style={styles.fraseBienvenida}>Cocina con lo que tienes en casa</Text>
 
-            <CampoFormulario ref={campoCorreo} error={errorCorreo} autoComplete="email" autoCorrect={false} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => campoClave.current?.focus()} etiqueta="Correo" editable={!cargando} 
-              placeholder="Correo"
-              placeholderTextColor={colors.textoSecundario}
+          <View style={styles.card}>
+            <Text style={styles.titulo} accessibilityRole="header">
+              Iniciar sesión
+            </Text>
+            <Text style={styles.descripcion}>Entra con tu correo y contraseña.</Text>
+
+            <AvisoFormulario texto={aviso} />
+            {sinConfirmar && (
+              <Pressable
+                onPress={() => navigation.navigate('ConfirmarCorreo', { correo: normalizarCorreo(email) })}
+                style={[styles.linkRegistro, { marginTop: -8, marginBottom: 6 }]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.textoLinkRegistro, styles.textoLinkRegistroBold]}>Escribir mi código</Text>
+              </Pressable>
+            )}
+
+            <CampoFormulario
+              ref={campoCorreo}
+              error={errorCorreo}
+              autoComplete="email"
+              autoCorrect={false}
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => campoClave.current?.focus()}
+              etiqueta="Correo"
+              editable={!cargando}
+              placeholder="nombre@correo.com"
               value={email}
               onChangeText={(text) => setEmail(text)}
               autoCapitalize="none"
               keyboardType="email-address"
             />
 
-            <CampoFormulario ref={campoClave} error={errorClave} autoComplete="current-password" etiqueta="Contraseña" editable={!cargando} esContrasena autoCapitalize="none" autoCorrect={false} 
-              placeholder="Contraseña"
-              placeholderTextColor={colors.textoSecundario}
+            <CampoFormulario
+              ref={campoClave}
+              error={errorClave}
+              autoComplete="current-password"
+              etiqueta="Contraseña"
+              editable={!cargando}
+              esContrasena
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Tu contraseña"
               value={password}
               onChangeText={(text) => setPassword(text)}
               returnKeyType="done"
               onSubmitEditing={iniciarSesion}
             />
 
-              <TouchableOpacity disabled={cargando} accessibilityRole="button" accessibilityState={{ disabled: cargando, busy: cargando }} accessibilityLabel="Iniciar sesión"
-                style={styles.botonPrincipal}
-                onPress={iniciarSesion}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.textoBotonPrincipal}>{cargando ? 'Procesando…' : 'Iniciar sesión'}</Text>
-              </TouchableOpacity>
-
-            {/* AUTH: link para recuperar la contraseña, mismo estilo que "Regístrate" */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate("RecuperarClave")}
+            <Pressable
+              onPress={() => navigation.navigate('RecuperarClave')}
               disabled={cargando}
-              style={styles.linkRegistro}
+              style={[styles.linkRegistro, { alignItems: 'flex-end', minHeight: 36, paddingVertical: 0, marginTop: -6 }]}
               accessibilityRole="button"
               accessibilityLabel="¿Olvidaste tu contraseña?"
             >
-              <Text style={styles.textoLinkRegistro}>
-                <Text style={styles.textoLinkRegistroBold}>¿Olvidaste tu contraseña?</Text>
-              </Text>
-            </TouchableOpacity>
+              <Text style={[styles.textoLinkRegistro, styles.textoLinkRegistroBold]}>¿Olvidaste tu contraseña?</Text>
+            </Pressable>
 
-            {/* (clase) navigation.navigate para cambiar de pantalla */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate("SignUp")}
+            <Pressable
               disabled={cargando}
-              style={styles.linkRegistro}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: cargando, busy: cargando }}
+              accessibilityLabel="Iniciar sesión"
+              style={({ pressed }) => [styles.botonPrincipal, (pressed || cargando) && styles.botonOcupado]}
+              onPress={iniciarSesion}
             >
+              {cargando && <ActivityIndicator color={colors.sobreEncabezado} />}
+              <Text style={styles.textoBotonPrincipal}>{cargando ? 'Entrando…' : 'Iniciar sesión'}</Text>
+            </Pressable>
+
+            <View style={[styles.separador, { marginTop: 18 }]} />
+
+            <Pressable onPress={() => navigation.navigate('SignUp')} disabled={cargando} style={styles.linkRegistro} accessibilityRole="button">
               <Text style={styles.textoLinkRegistro}>
-                ¿No tienes cuenta?{" "}
-                <Text style={styles.textoLinkRegistroBold}>Crear cuenta</Text>
+                ¿No tienes cuenta? <Text style={styles.textoLinkRegistroBold}>Crear cuenta</Text>
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </ImageBackground>
   );
 }
-
-// (clase) Estilos al final del archivo

@@ -60,7 +60,7 @@ function aReceta(fila: any): RecetaParaRecomendar {
   };
 }
 
-async function cargarRecetas(): Promise<RecetaParaRecomendar[]> {
+export async function cargarRecetas(): Promise<RecetaParaRecomendar[]> {
   const consulta = (columnasIngrediente: string) =>
     supabase
       .from('recetas')
@@ -80,7 +80,7 @@ async function cargarRecetas(): Promise<RecetaParaRecomendar[]> {
   return (data ?? []).map(aReceta);
 }
 
-async function cargarAlacena(): Promise<ItemAlacena[]> {
+export async function cargarAlacena(): Promise<ItemAlacena[]> {
   const { data, error } = await supabase.from('alacena_items').select('ingrediente_id, cantidad, usar_pronto');
   if (error) throw error;
   return (data ?? []).map((f: any) => ({
@@ -90,7 +90,7 @@ async function cargarAlacena(): Promise<ItemAlacena[]> {
   }));
 }
 
-async function cargarHistorial(): Promise<Historial> {
+export async function cargarHistorial(): Promise<Historial> {
   const historial: Historial = {
     favoritas: new Set(),
     hacerDespues: new Set(),

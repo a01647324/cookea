@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,8 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { OrdenComunidad, useComunidad } from '../hooks/useComunidad';
+import Icono from '../components/Icono';
+import { EstadoVacio } from '../components/EstadoVacio';
+import { IMAGENES_MASCOTA } from '../constants/mascota';
+import { OrdenComunidad, RecetaFeed, useComunidad } from '../hooks/useComunidad';
+import { HojaColeccion } from '../components/recetario/HojaColeccion';
 import { TarjetaRecetaComunidad } from '../components/comunidad/TarjetaRecetaComunidad';
 import { SearchBar } from '../components/SearchBar';
 import { VistaCargando, VistaError } from '../components/StateViews';
@@ -25,10 +28,11 @@ interface Props {
   onAbrirReceta: (id: number) => void;
   onPublicar: () => void;
   onMisPublicaciones: () => void;
-  onGuardar?: (id: number) => void;
+  recetaPublicada?: number;
 }
 
 const ORDENES: { valor: OrdenComunidad; texto: string }[] = [
+  { valor: 'para_ti', texto: 'Para ti' },
   { valor: 'recientes', texto: 'Recientes' },
   { valor: 'mejor_calificadas', texto: 'Mejor calificadas' },
 ];
@@ -37,14 +41,25 @@ export default function ComunidadScreen({
   onAbrirReceta,
   onPublicar,
   onMisPublicaciones,
-  onGuardar,
+  recetaPublicada,
 }: Props) {
   const [orden, setOrden] = useState<OrdenComunidad>('recientes');
   const [busqueda, setBusqueda] = useState('');
+  const [etiquetaId, setEtiquetaId] = useState<number | null>(null);
+  const [coleccion, setColeccion] = useState<RecetaFeed | null>(null);
   const [mostrarFlotante, setMostrarFlotante] = useState(false);
+  const lista = useRef<FlatList<RecetaFeed>>(null);
 
-  const { recetas, cargando, cargandoMas, refrescando, error, cargarMas, refrescar, reintentar } =
-    useComunidad(orden, busqueda);
+  const { recetas, etiquetas, cargando, cargandoMas, refrescando, error, cargarMas, refrescar, reintentar } =
+    useComunidad(orden, busqueda, etiquetaId);
+
+  // Recién publicada: mostramos las más recientes para que quede hasta arriba
+  useEffect(() => {
+    if (!recetaPublicada) return;
+    setOrden('recientes');
+    setEtiquetaId(null);
+    lista.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [recetaPublicada]);
 
   // Al regresar al feed (por ejemplo, después de publicar) se actualiza la lista
   const primeraVez = useRef(true);
@@ -74,8 +89,14 @@ export default function ComunidadScreen({
           style={estilos.logo}
           resizeMode="contain"
         />
-        <Pressable onPress={onMisPublicaciones} hitSlop={10} accessibilityLabel="Mis publicaciones">
-          <Ionicons name="reader-outline" size={24} color={colors.primario} />
+        <Pressable
+          onPress={onMisPublicaciones}
+          hitSlop={6}
+          style={estilos.botonMis}
+          accessibilityRole="button"
+          accessibilityLabel="Mis publicaciones"
+        >
+          <Icono nombre="document-text-linear" size={22} color={colors.primario} />
         </Pressable>
       </View>
 
@@ -99,26 +120,72 @@ export default function ComunidadScreen({
               key={o.valor}
               onPress={() => setOrden(o.valor)}
               style={[estilos.chip, activo && estilos.chipActivo]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activo }}
             >
+              {o.valor === 'para_ti' && (
+                <Icono nombre="chef-hat-heart-linear" size={16} color={activo ? colors.sobreAcento : colors.acentoOscuro} />
+              )}
               <Text style={[estilos.textoChip, activo && estilos.textoChipActivo]}>{o.texto}</Text>
             </Pressable>
           );
         })}
       </ScrollView>
 
-      <View style={estilos.invitacion}>
-        <View style={estilos.iconoInvitacion}>
-          <Ionicons name="restaurant-outline" size={22} color={colors.texto} />
+      {etiquetas.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={estilos.filaEtiquetas}
+        >
+          {etiquetas.map((e) => {
+            const activa = etiquetaId === e.id;
+            return (
+              <Pressable
+                key={e.id}
+                onPress={() => setEtiquetaId(activa ? null : e.id)}
+                style={[estilos.etiqueta, activa && estilos.etiquetaActiva]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: activa }}
+              >
+                {activa && <Icono nombre="check-linear" size={14} color={colors.sobrePrimario} />}
+                <Text style={[estilos.textoEtiqueta, activa && estilos.textoEtiquetaActiva]}>{e.nombre}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {orden === 'para_ti' && (
+        <View style={estilos.notaParaTi}>
+          <Icono nombre="lightbulb-linear" size={18} color={colors.calidoIntenso} />
+          <Text style={estilos.textoNotaParaTi}>Ordenadas según tu alacena, tus gustos y lo que debes usar pronto.</Text>
+        </View>
+      )}
+
+      <Pressable
+        onPress={onPublicar}
+        style={({ pressed }) => [estilos.invitacion, pressed && { opacity: 0.92 }]}
+        accessibilityRole="button"
+        accessibilityLabel="Publicar una receta de familia"
+      >
+        <View style={estilos.medioCirculo}>
+          <Image
+            source={IMAGENES_MASCOTA.asomarse!}
+            style={estilos.mascota}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
         </View>
         <View style={estilos.textosInvitacion}>
           <Text style={estilos.tituloInvitacion}>¿Tienes una receta de familia?</Text>
           <Text style={estilos.subInvitacion}>Compártela con la comunidad</Text>
         </View>
-        <Pressable onPress={onPublicar} style={estilos.botonInvitacion}>
-          <Ionicons name="add" size={16} color={colors.primario} />
+        <View style={estilos.botonInvitacion}>
+          <Icono nombre="add-linear" size={16} color={colors.primario} />
           <Text style={estilos.textoBotonInvitacion}>Publicar</Text>
-        </Pressable>
-      </View>
+        </View>
+      </Pressable>
     </View>
   );
 
@@ -127,27 +194,34 @@ export default function ComunidadScreen({
   ) : error ? (
     <VistaError mensaje={error} onReintentar={reintentar} />
   ) : (
-    <View style={estilos.vacio}>
-      <Ionicons name="people-outline" size={40} color={colors.neutro} />
-      <Text style={tipografia.subtitulo}>
-        {busqueda ? 'No encontramos recetas' : 'Aún no hay recetas'}
-      </Text>
-      <Text style={[tipografia.chico, estilos.centrado]}>
-        {busqueda ? 'Prueba con otra palabra.' : 'Sé la primera persona en compartir la suya.'}
-      </Text>
-    </View>
+    busqueda || etiquetaId != null ? (
+      <EstadoVacio
+        imagen={require('../assets/images/vacios/lupa_cuchara.webp')}
+        titulo="No encontramos recetas"
+        texto={busqueda ? `Nada coincide con "${busqueda}". Prueba con otra palabra.` : 'No hay recetas con esa etiqueta todavía.'}
+        accion={etiquetaId != null ? { texto: 'Quitar etiqueta', onPress: () => setEtiquetaId(null) } : undefined}
+      />
+    ) : (
+      <EstadoVacio
+        imagen={require('../assets/images/vacios/mesa_compartida.webp')}
+        titulo="Aún no hay recetas"
+        texto="Sé la primera persona en compartir la suya."
+        accion={{ texto: 'Publicar receta', onPress: onPublicar }}
+      />
+    )
   );
 
   return (
     <SafeAreaView style={estilos.pantalla} edges={['top']}>
       <FlatList
+        ref={lista}
         data={recetas}
         keyExtractor={(r) => String(r.id)}
         renderItem={({ item }) => (
           <TarjetaRecetaComunidad
             receta={item}
             onPress={() => onAbrirReceta(item.id)}
-            onGuardar={() => onGuardar?.(item.id)}
+            onColeccion={() => setColeccion(item)}
           />
         )}
         ListHeaderComponent={encabezado}
@@ -172,11 +246,12 @@ export default function ComunidadScreen({
       />
 
       {mostrarFlotante && (
-        <Pressable onPress={onPublicar} style={estilos.botonFlotante}>
-          <Ionicons name="add" size={20} color={colors.sobrePrimario} />
+        <Pressable onPress={onPublicar} style={estilos.botonFlotante} accessibilityRole="button">
+          <Icono nombre="add-linear" size={20} color={colors.sobrePrimario} />
           <Text style={estilos.textoFlotante}>Publicar</Text>
         </Pressable>
       )}
+      <HojaColeccion visible={!!coleccion} receta={coleccion} onCerrar={() => setColeccion(null)} />
     </SafeAreaView>
   );
 }
@@ -198,7 +273,15 @@ const estilos = StyleSheet.create({
     marginBottom: espaciado.sm,
   },
   espacioIcono: {
-    width: 24,
+    width: 44,
+  },
+  botonMis: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.superficie,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
     width: 140,
@@ -232,6 +315,9 @@ const estilos = StyleSheet.create({
     paddingVertical: espaciado.md,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     borderWidth: 1.5,
     borderColor: colors.acento,
     borderRadius: radios.pill,
@@ -250,22 +336,69 @@ const estilos = StyleSheet.create({
   textoChipActivo: {
     color: colors.sobreAcento,
   },
+  filaEtiquetas: {
+    gap: 8,
+    paddingBottom: espaciado.md,
+  },
+  etiqueta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.superficie,
+    borderRadius: radios.pill,
+    paddingHorizontal: 14,
+    minHeight: 36,
+  },
+  etiquetaActiva: {
+    backgroundColor: colors.primario,
+  },
+  textoEtiqueta: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.chico,
+    color: colors.textoSuave,
+  },
+  textoEtiquetaActiva: {
+    color: colors.sobrePrimario,
+  },
+  notaParaTi: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.calidoSuave,
+    borderRadius: radios.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: espaciado.md,
+  },
+  textoNotaParaTi: {
+    flex: 1,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.chico,
+    lineHeight: 18,
+    color: colors.texto,
+  },
   invitacion: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+    minHeight: 96,
     backgroundColor: colors.primario,
     borderRadius: radios.lg,
-    padding: espaciado.md,
+    paddingRight: espaciado.md,
     marginBottom: espaciado.lg,
+    overflow: 'hidden',
   },
-  iconoInvitacion: {
-    width: 44,
-    height: 44,
-    borderRadius: radios.md,
-    backgroundColor: colors.calido,
-    alignItems: 'center',
-    justifyContent: 'center',
+  medioCirculo: {
+    alignSelf: 'stretch',
+    width: 84,
+    overflow: 'hidden',
+  },
+  mascota: {
+    position: 'absolute',
+    left: 0,
+    top: 6,
+    width: 84,
+    height: 134,
   },
   textosInvitacion: {
     flex: 1,
@@ -296,14 +429,6 @@ const estilos = StyleSheet.create({
     fontFamily: fuentes.negrita,
     fontSize: tamanos.base,
     color: colors.primario,
-  },
-  vacio: {
-    alignItems: 'center',
-    gap: espaciado.sm,
-    paddingVertical: espaciado.xl,
-  },
-  centrado: {
-    textAlign: 'center',
   },
   cargandoMas: {
     marginVertical: espaciado.md,

@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from '../Icono';
 import { HojaInferior } from '../HojaInferior';
 import { ChipsFiltro } from '../alacena/chipsFiltro';
 import { IngredienteImagen } from '../alacena/ingredienteImagen';
@@ -93,7 +93,7 @@ export function SelectorIngredienteReceta({ visible, existente, idsUsados, onCon
           <View style={estilos.encabezadoElegido}>
             {!existente && (
               <Pressable onPress={() => setElegido(null)} hitSlop={10} accessibilityLabel="Elegir otro">
-                <Ionicons name="arrow-back" size={22} color={colors.primario} />
+                <Icono nombre="arrow-left-linear" size={22} color={colors.primario} />
               </Pressable>
             )}
             <IngredienteImagen nombre={elegido.nombre} categoria={elegido.categoria} url={elegido.imagen_url} tamano={52} />
@@ -135,7 +135,7 @@ export function SelectorIngredienteReceta({ visible, existente, idsUsados, onCon
           </Pressable>
           {existente && (
             <Pressable onPress={onQuitar} style={estilos.botonQuitar}>
-              <Ionicons name="trash-outline" size={17} color={colors.peligro} />
+              <Icono nombre="trash-bin-trash-linear" size={17} color={colors.peligro} />
               <Text style={estilos.textoQuitar}>Quitar de la receta</Text>
             </Pressable>
           )}
@@ -145,7 +145,7 @@ export function SelectorIngredienteReceta({ visible, existente, idsUsados, onCon
           <Text style={estilos.titulo}>Agregar ingrediente</Text>
 
           <View style={estilos.buscador}>
-            <Ionicons name="search" size={18} color={colors.textoSuave} />
+            <Icono nombre="magnifier-linear" size={20} color={colors.textoSuave} />
             <TextInput
               value={busqueda}
               onChangeText={setBusqueda}
@@ -156,8 +156,8 @@ export function SelectorIngredienteReceta({ visible, existente, idsUsados, onCon
               importantForAutofill="no"
             />
             {buscando && (
-              <Pressable onPress={() => setBusqueda('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={18} color={colors.textoSuave} />
+              <Pressable onPress={() => setBusqueda('')} hitSlop={8} accessibilityLabel="Borrar búsqueda">
+                <Icono nombre="close-circle-linear" size={18} color={colors.textoSuave} />
               </Pressable>
             )}
           </View>
@@ -188,10 +188,10 @@ export function SelectorIngredienteReceta({ visible, existente, idsUsados, onCon
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{ gap: espaciado.sm, paddingVertical: espaciado.sm }}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => elegir(item)} style={estilos.fila}>
+                  <Pressable onPress={() => elegir(item)} style={estilos.fila} accessibilityRole="button" accessibilityLabel={`Agregar ${item.nombre}`}>
                     <IngredienteImagen nombre={item.nombre} categoria={item.categoria} url={item.imagen_url} tamano={40} />
                     <Text style={estilos.nombreFila}>{item.nombre}</Text>
-                    <Ionicons name="add-circle-outline" size={24} color={colors.primario} />
+                    <Icono nombre="add-circle-linear" size={26} color={colors.primario} />
                   </Pressable>
                 )}
               />

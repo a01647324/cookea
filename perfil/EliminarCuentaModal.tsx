@@ -1,20 +1,12 @@
 import { useRef, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Pressable,
-  StyleSheet,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-} from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView, Alert } from "react-native";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import CampoFormulario from "../auth/CampoFormulario";
-import { colors, espaciado, radios, tipografia } from "../theme/theme";
+import { HojaInferior } from "../components/HojaInferior";
+import Icono from "../components/Icono";
+import AvisoFormulario from "./AvisoFormulario";
+import { colors, espaciado, fuentes, radios, tamanos } from "../theme/theme";
 
 const MENSAJE_SIN_CONEXION =
   "No hay conexión. Revisa tu internet e intenta de nuevo. Tu cuenta no se eliminó.";
@@ -158,166 +150,164 @@ export default function EliminarCuentaModal({ visible, onCerrar }: Props) {
 
   const puedeEliminar = !eliminando && frase === "ELIMINAR" && contrasena !== "";
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={cerrar}>
-      <KeyboardAvoidingView
-        style={styles.fondo}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {/* Fondo oscuro: tocarlo cierra el modal. Va DETRÁS de la tarjeta
-            (no la envuelve), así tocar la tarjeta no lo cierra. */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={cerrar}
-          accessibilityLabel="Cerrar sin eliminar"
+    <HojaInferior visible={visible} onCerrar={cerrar}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} accessibilityViewIsModal>
+        <View style={styles.halo}>
+          <View style={styles.circulo}>
+            <Icono nombre="trash-bin-trash-linear" size={32} color={colors.peligro} />
+          </View>
+        </View>
+        <Text style={styles.titulo} accessibilityRole="header">
+          ¿Eliminar tu cuenta?
+        </Text>
+
+        <View style={styles.tarjeta}>
+          <Text style={styles.explicacion}>
+            Se borrarán para siempre tu perfil, tus alergias y las de tu casa, tu alacena, tus álbumes, tu plan de la
+            semana, y tus calificaciones y comentarios.
+          </Text>
+          <Text style={styles.explicacion}>
+            Las recetas que publicaste en Comunidad se quedan para que otras personas no las pierdan, pero ya no tendrán
+            tu alias: aparecerán como de «Usuario eliminado». Las imágenes de esas recetas pueden conservarse.
+          </Text>
+          <View style={styles.advertencia}>
+            <Icono nombre="danger-triangle-linear" size={18} color={colors.peligro} />
+            <Text style={styles.textoAdvertencia}>Esto no se puede deshacer.</Text>
+          </View>
+        </View>
+
+        <AvisoFormulario texto={aviso} />
+
+        <CampoFormulario
+          etiqueta="Escribe tu contraseña para confirmar"
+          esContrasena
+          value={contrasena}
+          onChangeText={(texto) => {
+            setContrasena(texto);
+            setErrorContrasena("");
+          }}
+          error={errorContrasena}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="current-password"
+          textContentType="password"
+          returnKeyType="done"
+          editable={!eliminando}
+        />
+        <CampoFormulario
+          etiqueta="Escribe ELIMINAR para confirmar"
+          value={frase}
+          onChangeText={setFrase}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          editable={!eliminando}
         />
 
-        {/* (nuevo) accessibilityViewIsModal: el lector de pantalla no lee lo
-            que está detrás del modal */}
-        <View style={styles.tarjeta} accessibilityViewIsModal>
-          <ScrollView keyboardShouldPersistTaps="handled">
-            <Text style={styles.titulo} accessibilityRole="header">
-              ¿Eliminar tu cuenta?
-            </Text>
+        {/* "Cancelar" es el botón más grande y visible */}
+        <Pressable
+          style={[styles.botonCancelar, eliminando && styles.botonDeshabilitado]}
+          onPress={cerrar}
+          disabled={eliminando}
+          accessibilityRole="button"
+          accessibilityLabel="Cancelar, no eliminar mi cuenta"
+        >
+          <Text style={styles.textoBotonCancelar}>Cancelar</Text>
+        </Pressable>
 
-            <Text style={styles.explicacion}>
-              Se borrarán para siempre tu perfil, tus alergias y las de tu casa,
-              tu alacena, tus álbumes, tu plan de la semana, y tus calificaciones
-              y comentarios.
-            </Text>
-            <Text style={styles.explicacion}>
-              Las recetas que publicaste en Comunidad se quedan para que otras
-              personas no las pierdan, pero ya no tendrán tu alias: aparecerán
-              como de «Usuario eliminado». Las imágenes de esas recetas pueden conservarse.
-            </Text>
-            <Text style={[styles.explicacion, styles.negrita]}>
-              Esto no se puede deshacer.
-            </Text>
-
-            {/* (nuevo) Aviso general dentro del modal, en vez de alert() */}
-            {aviso !== "" && (
-              <View style={styles.aviso} accessibilityLiveRegion="polite">
-                <Text style={styles.textoAviso}>{aviso}</Text>
-              </View>
-            )}
-
-            <CampoFormulario
-              etiqueta="Escribe tu contraseña para confirmar"
-              esContrasena
-              value={contrasena}
-              onChangeText={(texto) => {
-                setContrasena(texto);
-                setErrorContrasena("");
-              }}
-              error={errorContrasena}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="current-password"
-              textContentType="password"
-              returnKeyType="done"
-              editable={!eliminando}
-            />
-
-            <CampoFormulario etiqueta="Escribe ELIMINAR para confirmar" value={frase} onChangeText={setFrase} autoCapitalize="characters" autoCorrect={false} editable={!eliminando} />
-            {/* "Cancelar" es el botón más grande y visible */}
-            <TouchableOpacity
-              style={[styles.botonCancelar, eliminando && styles.botonDeshabilitado]}
-              onPress={cerrar}
-              disabled={eliminando}
-              accessibilityRole="button"
-              accessibilityLabel="Cancelar, no eliminar mi cuenta"
-            >
-              <Text style={styles.textoBotonCancelar}>Cancelar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.botonEliminar, !puedeEliminar && styles.botonDeshabilitado]}
-              onPress={eliminar}
-              disabled={!puedeEliminar}
-              accessibilityState={{ disabled: !puedeEliminar }}
-              accessibilityRole="button"
-              accessibilityLabel="Eliminar mi cuenta para siempre"
-            >
-              <Text style={styles.textoBotonEliminar}>
-                {eliminando ? "Eliminando…" : "Eliminar mi cuenta"}
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        <Pressable
+          style={[styles.botonEliminar, !puedeEliminar && styles.botonDeshabilitado]}
+          onPress={eliminar}
+          disabled={!puedeEliminar}
+          accessibilityState={{ disabled: !puedeEliminar }}
+          accessibilityRole="button"
+          accessibilityLabel="Eliminar mi cuenta para siempre"
+        >
+          <Text style={styles.textoBotonEliminar}>{eliminando ? "Eliminando…" : "Eliminar mi cuenta"}</Text>
+        </Pressable>
+      </ScrollView>
+    </HojaInferior>
   );
 }
 
-// (clase) Estilos al final del archivo. Para cambiar el diseño, solo se toca esto.
 const styles = StyleSheet.create({
-  fondo: {
-    flex: 1,
+  halo: {
+    alignSelf: "center",
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: colors.peligroSuave,
+    alignItems: "center",
     justifyContent: "center",
-    padding: espaciado.md,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  tarjeta: {
-    maxHeight: "90%",
-    backgroundColor: colors.background,
-    borderRadius: radios.lg,
-    padding: espaciado.lg,
+  circulo: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.superficie,
+    alignItems: "center",
+    justifyContent: "center",
   },
   titulo: {
-    ...tipografia.titulo,
+    fontFamily: fuentes.titulo,
+    fontSize: 23,
+    lineHeight: 30,
+    color: colors.texto,
+    textAlign: "center",
+    marginTop: espaciado.md,
+    marginBottom: espaciado.md,
+  },
+  tarjeta: {
+    backgroundColor: colors.superficie,
+    borderRadius: radios.lg,
+    padding: espaciado.md,
     marginBottom: espaciado.md,
   },
   explicacion: {
-    ...tipografia.cuerpo,
-    fontSize: 16,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 22,
+    color: colors.textoSuave,
     marginBottom: espaciado.sm,
   },
-  negrita: {
-    fontWeight: "700",
-    marginBottom: espaciado.md,
+  advertencia: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
-  aviso: {
-    backgroundColor: colors.surface,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.error,
-    borderRadius: radios.sm,
-    padding: espaciado.md,
-    marginBottom: espaciado.md,
-  },
-  textoAviso: {
-    color: colors.error,
-    fontSize: 15,
+  textoAdvertencia: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.cuerpo,
+    color: colors.peligro,
   },
   botonCancelar: {
-    minHeight: 56,
-    backgroundColor: colors.olivaOscuro,
+    minHeight: 58,
+    backgroundColor: colors.primario,
     borderRadius: radios.pill,
-    paddingVertical: espaciado.md,
-    paddingHorizontal: espaciado.lg,
     alignItems: "center",
     justifyContent: "center",
     marginTop: espaciado.sm,
   },
   textoBotonCancelar: {
-    color: colors.textoSobreColor,
-    fontSize: 18,
-    fontWeight: "700",
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.enorme,
+    color: colors.sobrePrimario,
   },
   botonEliminar: {
-    minHeight: 48,
-    backgroundColor: colors.error,
+    minHeight: 50,
     borderRadius: radios.pill,
-    paddingVertical: espaciado.sm,
-    paddingHorizontal: espaciado.lg,
+    borderWidth: 1.5,
+    borderColor: colors.peligro,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: espaciado.md,
+    marginTop: espaciado.sm,
+    marginBottom: espaciado.sm,
   },
   textoBotonEliminar: {
-    color: colors.textoSobreColor,
-    fontSize: 15,
-    fontWeight: "700",
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.cuerpo,
+    color: colors.peligro,
   },
   botonDeshabilitado: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
 });

@@ -1,29 +1,61 @@
-import useProteccionCapturas from "./useProteccionCapturas";
-import useSession from "../auth/useSession";
-import { obtenerSeccion, SeccionPreferencias } from "./secciones";
-import useCocina from "./useCocina";
-import BloquesCocina from "./BloquesCocina";
-import Encabezado from "./Encabezado";
-import { useCallback, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, usePreventRemove } from "@react-navigation/native";
-import { VistaCargando } from "../components/StateViews";
-import { colors, espaciado, radios, tipografia } from "../theme/theme";
-import usePreferencias from "./usePreferencias";
-import SelectorPersonas from "./SelectorPersonas";
-import ListaAlergenos from "./ListaAlergenos";
+import useProteccionCapturas from './useProteccionCapturas';
+import useSession from '../auth/useSession';
+import { obtenerSeccion, SeccionPreferencias } from './secciones';
+import useCocina from './useCocina';
+import BloquesCocina from './BloquesCocina';
+import Encabezado from './Encabezado';
+import AvisoFormulario from './AvisoFormulario';
+import PantallaListo from './PantallaListo';
+import { useCallback, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
+import { VistaCargando } from '../components/StateViews';
+import { ConfirmarHoja } from '../components/ConfirmarHoja';
+import Icono, { NombreIcono } from '../components/Icono';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
+import usePreferencias from './usePreferencias';
+import SelectorPersonas from './SelectorPersonas';
+import ListaAlergenos from './ListaAlergenos';
+
+const SECCIONES: Record<SeccionPreferencias, { titulo: string; texto: string; icono: NombreIcono; fondo: string; color: string }> = {
+  restricciones: {
+    titulo: 'Mis restricciones',
+    texto: 'No te mostraremos recetas con lo que marques como alergia.',
+    icono: 'health-linear',
+    fondo: colors.peligroSuave,
+    color: colors.peligro,
+  },
+  hogar: {
+    titulo: 'Mi hogar',
+    texto: 'Así cuidamos también a quienes viven contigo.',
+    icono: 'home-2-linear',
+    fondo: colors.calidoSuave,
+    color: colors.calidoIntenso,
+  },
+  cocina: {
+    titulo: 'Mi cocina',
+    texto: 'Marca lo que tienes para recomendarte recetas que sí puedas hacer.',
+    icono: 'oven-mitts-linear',
+    fondo: colors.serenoSuave,
+    color: colors.serenoIntenso,
+  },
+};
 
 // PreferenciasScreen: "Editar preferencias", desde Perfil.
-// Las mismas preguntas de Personaliza, pero en una sola pantalla con
-// desplazamiento, porque la persona ya las conoce.
-// (clase) Componente declarado como función y navigation que recibe de React Navigation
+// Las mismas preguntas de Personaliza, pero en una sola pantalla.
 export default function PreferenciasScreen({ navigation }: any) {
-  useProteccionCapturas("preferencias");
+  useProteccionCapturas('preferencias');
   const { session } = useSession();
-  const [seccion, setSeccion] = useState<SeccionPreferencias>(() => session ? obtenerSeccion(session.user.id) : 'restricciones');
-  useFocusEffect(useCallback(() => { if (session) setSeccion(obtenerSeccion(session.user.id)); }, [session]));
-  const tituloSeccion = { restricciones: 'Mis restricciones', hogar: 'Mi hogar', cocina: 'Mi cocina' }[seccion];
+  const [seccion, setSeccion] = useState<SeccionPreferencias>(() =>
+    session ? obtenerSeccion(session.user.id) : 'restricciones'
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (session) setSeccion(obtenerSeccion(session.user.id));
+    }, [session])
+  );
+  const datos = SECCIONES[seccion];
   const cocina = useCocina();
   const bloqueo = useRef(false);
   const [guardandoTodo, setGuardandoTodo] = useState(false);
@@ -47,98 +79,84 @@ export default function PreferenciasScreen({ navigation }: any) {
   const cargando = cargaAlergias || cocina.cargando;
   const errorCarga = errorAlergias || cocina.error;
   const guardando = guardandoTodo || guardandoAlergias || cocina.guardando;
-  const recargar = () => { if (errorAlergias) recargarAlergias(); if (cocina.error) cocina.recargar(); };
-  // (clase) Un useState por cada dato de la pantalla
-  const [aviso, setAviso] = useState("");
-  const [listo, setListo] = useState(false); // true cuando ya se guardó
+  const recargar = () => {
+    if (errorAlergias) recargarAlergias();
+    if (cocina.error) cocina.recargar();
+  };
+  const [aviso, setAviso] = useState('');
+  const [listo, setListo] = useState(false);
+  const [salidaPendiente, setSalidaPendiente] = useState<any>(null);
 
-  // (nuevo) usePreventRemove detiene la salida (botón "atrás", gesto o
-  // goBack) mientras haya cambios sin guardar, y pregunta antes de salir.
+  // Detiene la salida mientras haya cambios sin guardar y pregunta antes de salir
   usePreventRemove((hayCambios && !listo) || guardando, ({ data }) => {
     if (guardando) return;
-    Alert.alert("¿Salir sin guardar los cambios?", "Si sales ahora, se perderán.", [
-      { text: "Quedarme", style: "cancel" },
-      {
-        text: "Salir sin guardar",
-        style: "destructive",
-        onPress: () => navigation.dispatch(data.action),
-      },
-    ]);
+    setSalidaPendiente(data.action);
   });
 
   // Guarda en el mismo orden que Personaliza, sin la marca "personalizo".
   // Con 1 persona, usePreferencias borra las alergias del hogar.
   async function guardarCambios() {
     if (bloqueo.current || guardando || !hayCambios || cargando || errorCarga) return;
-    bloqueo.current = true; setGuardandoTodo(true);
+    bloqueo.current = true;
+    setGuardandoTodo(true);
     try {
-    setAviso("");
-    const mensaje = seccion === "cocina" ? null : await guardar(propias, hogar, seccion);
-    if (mensaje !== null) {
-      setAviso("No se completó el guardado. Algunos cambios pueden haberse guardado. Conservamos tu selección para reintentar. " + mensaje);
-      return;
+      setAviso('');
+      const mensaje = seccion === 'cocina' ? null : await guardar(propias, hogar, seccion);
+      if (mensaje !== null) {
+        setAviso(
+          'No se completó el guardado. Algunos cambios pueden haberse guardado. Conservamos tu selección para reintentar. ' +
+            mensaje
+        );
+        return;
+      }
+      const errorCocina = seccion === 'hogar' ? null : await cocina.guardar(seccion === 'restricciones' ? 'gustos' : 'cocina');
+      if (errorCocina) {
+        setAviso(errorCocina);
+        return;
+      }
+      setListo(true);
+    } finally {
+      bloqueo.current = false;
+      setGuardandoTodo(false);
     }
-    const errorCocina = seccion === "hogar" ? null : await cocina.guardar(seccion === "restricciones" ? "gustos" : "cocina");
-    if (errorCocina) { setAviso(errorCocina); return; }
-    setListo(true);
-    } finally { bloqueo.current = false; setGuardandoTodo(false); }
   }
 
-  // Pantalla de éxito, con un botón para volver (no una alerta)
+  const encabezado = <Encabezado titulo={datos.titulo} onVolver={() => navigation.goBack()} deshabilitado={guardando} />;
+
   if (listo) {
     return (
-      <SafeAreaView style={styles.pantalla} edges={["top"]}>
-        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
-        <View style={styles.contenido}>
-          <Text style={styles.titulo} accessibilityRole="header">
-            Tus preferencias se guardaron
-          </Text>
-          <TouchableOpacity
-            style={styles.botonPrincipal}
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-          >
-            <Text style={styles.textoBotonPrincipal}>Volver</Text>
-          </TouchableOpacity>
-        </View>
+      <SafeAreaView style={styles.pantalla} edges={['top']}>
+        {encabezado}
+        <PantallaListo
+          titulo="Tus preferencias se guardaron"
+          texto="Puedes cambiarlas cuando quieras desde tu perfil."
+          onVolver={() => navigation.goBack()}
+        />
       </SafeAreaView>
     );
   }
 
   if (cargando) {
     return (
-      <SafeAreaView style={styles.pantalla} edges={["top"]}>
-        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
+      <SafeAreaView style={styles.pantalla} edges={['top']}>
+        {encabezado}
         <VistaCargando mensaje="Cargando tus preferencias…" />
       </SafeAreaView>
     );
   }
 
-  if (errorCarga !== "") {
+  if (errorCarga !== '') {
     return (
-      <SafeAreaView style={styles.pantalla} edges={["top"]}>
-        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
+      <SafeAreaView style={styles.pantalla} edges={['top']}>
+        {encabezado}
         <View style={styles.contenido}>
-          <View style={styles.aviso} accessibilityLiveRegion="polite">
-            <Text style={styles.textoAviso}>{errorCarga}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.botonPrincipal}
-            onPress={recargar}
-            accessibilityRole="button"
-            accessibilityLabel="Reintentar"
-          >
+          <AvisoFormulario texto={errorCarga} />
+          <Pressable style={styles.botonPrincipal} onPress={recargar} accessibilityRole="button">
             <Text style={styles.textoBotonPrincipal}>Reintentar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.botonSecundario}
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-          >
+          </Pressable>
+          <Pressable style={styles.botonSecundario} onPress={() => navigation.goBack()} accessibilityRole="button">
             <Text style={styles.textoBotonSecundario}>Volver</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -147,129 +165,184 @@ export default function PreferenciasScreen({ navigation }: any) {
   const puedeGuardar = hayCambios && !guardando;
 
   return (
-    <SafeAreaView style={styles.pantalla} edges={["top"]}>
-        <Encabezado titulo={tituloSeccion} onVolver={() => navigation.goBack()} deshabilitado={guardando} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView style={styles.flex} contentContainerStyle={styles.contenido} keyboardShouldPersistTaps="handled">
-        <Text style={styles.titulo} accessibilityRole="header">
-          {tituloSeccion}
-        </Text>
-
-        {/* (nuevo) Aviso general arriba, en vez de alert() */}
-        {aviso !== "" && (
-          <View style={styles.aviso} accessibilityLiveRegion="polite">
-            <Text style={styles.textoAviso}>{aviso}</Text>
+    <SafeAreaView style={styles.pantalla} edges={['top']}>
+      {encabezado}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.contenido} keyboardShouldPersistTaps="handled">
+          <View style={styles.intro}>
+            <View style={[styles.circulo, { backgroundColor: datos.fondo }]}>
+              <Icono nombre={datos.icono} size={28} color={datos.color} />
+            </View>
+            <Text style={styles.textoIntro}>{datos.texto}</Text>
           </View>
-        )}
 
-        {seccion === 'restricciones' && <>
-          <Text style={styles.tituloSeccion}>Tus alergias</Text>
-          <ListaAlergenos alergenos={alergenos} seleccionados={propias} onAlternar={alternarPropia} deshabilitado={guardando} />
-          <BloquesCocina cocina={cocina} deshabilitado={guardando} solo="gustos" />
-        </>}
-        {seccion === 'hogar' && <>
-          <Text style={styles.tituloSeccion}>Personas en tu casa</Text>
-          <Text style={styles.explicacion}>Contándote a ti.</Text>
-          <SelectorPersonas valor={personas} onCambiar={cambiarPersonas} deshabilitado={guardando} />
-          <Text style={styles.tituloSeccion}>Alergias de las demás personas de tu casa</Text>
-          {personas === 1 ? <Text style={styles.explicacion}>Si vives sola o solo, al guardar se eliminarán las alergias del hogar registradas.</Text> : <ListaAlergenos alergenos={alergenos} seleccionados={hogar} onAlternar={alternarHogar} deshabilitado={guardando} />}
-        </>}
-        {seccion === 'cocina' && <BloquesCocina cocina={cocina} deshabilitado={guardando} solo="cocina" />}
+          <AvisoFormulario texto={aviso} />
 
-      </ScrollView>
-      {/* (nuevo) Acción persistente, fuera del formulario desplazable. */}
-      <View style={styles.acciones}>
-        <TouchableOpacity
-          style={[styles.botonPrincipal, !puedeGuardar && styles.botonDeshabilitado]}
-          onPress={guardarCambios}
-          disabled={!puedeGuardar}
-          accessibilityRole="button"
-          accessibilityLabel="Guardar"
-          accessibilityState={{ disabled: !puedeGuardar }}
-        >
-          <Text style={styles.textoBotonPrincipal}>{guardando ? "Guardando…" : "Guardar"}</Text>
-        </TouchableOpacity>
-        {!hayCambios && <Text style={styles.ayudaGuardar}>No hay cambios pendientes.</Text>}
-      </View>
+          {seccion === 'restricciones' && (
+            <>
+              <View style={styles.bloque}>
+                <Text style={styles.tituloBloque}>Tus alergias</Text>
+                <ListaAlergenos alergenos={alergenos} seleccionados={propias} onAlternar={alternarPropia} deshabilitado={guardando} />
+              </View>
+              <BloquesCocina cocina={cocina} deshabilitado={guardando} solo="gustos" />
+            </>
+          )}
+
+          {seccion === 'hogar' && (
+            <>
+              <View style={styles.bloque}>
+                <Text style={styles.tituloBloque}>Personas en tu casa</Text>
+                <Text style={styles.explicacion}>Contándote a ti.</Text>
+                <SelectorPersonas valor={personas} onCambiar={cambiarPersonas} deshabilitado={guardando} />
+              </View>
+              <View style={styles.bloque}>
+                <Text style={styles.tituloBloque}>Alergias de las demás personas</Text>
+                {personas === 1 ? (
+                  <Text style={styles.explicacion}>
+                    Si vives sola o solo, al guardar se eliminarán las alergias del hogar registradas.
+                  </Text>
+                ) : (
+                  <ListaAlergenos alergenos={alergenos} seleccionados={hogar} onAlternar={alternarHogar} deshabilitado={guardando} />
+                )}
+              </View>
+            </>
+          )}
+
+          {seccion === 'cocina' && <BloquesCocina cocina={cocina} deshabilitado={guardando} solo="cocina" />}
+        </ScrollView>
+
+        <View style={styles.acciones}>
+          <Pressable
+            style={[styles.botonPrincipal, !puedeGuardar && styles.botonDeshabilitado]}
+            onPress={guardarCambios}
+            disabled={!puedeGuardar}
+            accessibilityRole="button"
+            accessibilityLabel="Guardar"
+            accessibilityState={{ disabled: !puedeGuardar }}
+          >
+            <Text style={styles.textoBotonPrincipal}>{guardando ? 'Guardando…' : 'Guardar'}</Text>
+          </Pressable>
+          {!hayCambios && <Text style={styles.ayuda}>No hay cambios pendientes.</Text>}
+        </View>
       </KeyboardAvoidingView>
+
+      <ConfirmarHoja
+        visible={salidaPendiente !== null}
+        titulo="¿Salir sin guardar?"
+        mensaje="Si sales ahora, se perderán tus cambios."
+        textoConfirmar="Salir sin guardar"
+        icono="close-circle-linear"
+        onConfirmar={() => {
+          const accion = salidaPendiente;
+          setSalidaPendiente(null);
+          navigation.dispatch(accion);
+        }}
+        onCerrar={() => setSalidaPendiente(null)}
+      />
     </SafeAreaView>
   );
 }
 
-// (clase) Estilos al final del archivo. Para cambiar el diseño, solo se toca esto.
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  acciones: { paddingHorizontal: espaciado.md, paddingVertical: espaciado.sm, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borde },
-  ayudaGuardar: { ...tipografia.chico, textAlign: "center", marginTop: espaciado.xs },
+  flex: {
+    flex: 1,
+  },
   pantalla: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.fondo,
   },
   contenido: {
     flexGrow: 1,
-    width: '100%', maxWidth: 640, alignSelf: 'center',
-    padding: espaciado.lg,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+    padding: espaciado.md,
+    gap: espaciado.md,
   },
-  titulo: {
-    ...tipografia.titulo,
-    marginBottom: espaciado.md,
+  intro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
-  tituloSeccion: {
-    ...tipografia.subtitulo,
-    fontSize: 18,
-    marginBottom: espaciado.sm,
+  circulo: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  separacion: {
-    marginTop: espaciado.lg,
+  textoIntro: {
+    flex: 1,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 22,
+    color: colors.textoSuave,
+  },
+  bloque: {
+    backgroundColor: colors.superficie,
+    borderRadius: radios.lg,
+    padding: espaciado.md,
+  },
+  tituloBloque: {
+    fontFamily: fuentes.titulo,
+    fontSize: 19,
+    lineHeight: 26,
+    color: colors.texto,
+    marginBottom: 12,
   },
   explicacion: {
-    ...tipografia.cuerpo,
-    fontSize: 16,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 22,
+    color: colors.textoSuave,
+    marginTop: -6,
   },
-  aviso: {
-    backgroundColor: colors.surface,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.error,
-    borderRadius: radios.sm,
-    padding: espaciado.md,
-    marginBottom: espaciado.md,
+  acciones: {
+    paddingHorizontal: espaciado.md,
+    paddingTop: espaciado.sm,
+    paddingBottom: espaciado.md,
+    backgroundColor: colors.superficie,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
-  textoAviso: {
-    color: colors.error,
-    fontSize: 15,
+  ayuda: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    color: colors.textoSuave,
+    textAlign: 'center',
+    marginTop: espaciado.xs,
   },
   botonPrincipal: {
     minHeight: 56,
-    backgroundColor: colors.botonPrincipal,
+    backgroundColor: colors.encabezado,
     borderRadius: radios.pill,
-    paddingVertical: espaciado.md,
     paddingHorizontal: espaciado.lg,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: espaciado.sm,
   },
   textoBotonPrincipal: {
-    color: colors.textoSobreColor,
-    fontSize: 17,
-    lineHeight: 25, textAlign: "center",
-    fontWeight: "700",
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.sobreEncabezado,
+    textAlign: 'center',
   },
   botonSecundario: {
     minHeight: 56,
-    borderWidth: 2,
-    borderColor: colors.olivaOscuro,
+    borderWidth: 1.5,
+    borderColor: colors.borde,
+    backgroundColor: colors.superficie,
     borderRadius: radios.pill,
-    paddingVertical: espaciado.sm,
     paddingHorizontal: espaciado.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: espaciado.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: espaciado.sm,
   },
   textoBotonSecundario: {
-    color: colors.olivaOscuro,
-    fontSize: 17,
-    lineHeight: 25, textAlign: "center",
-    fontWeight: "700",
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.texto,
+    textAlign: 'center',
   },
   botonDeshabilitado: {
     opacity: 0.5,

@@ -13,6 +13,7 @@ interface Props {
   onAbrirReceta: (recetaId: number) => void;
   onCocinar: (recetaId: number) => void;
   onPlanear: (fecha?: string) => void;
+  preparadaHoy?: boolean;
 }
 
 const NOMBRE_DIA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -27,9 +28,20 @@ function capitalizar(texto: string) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-export function TarjetaHoy({ dias, cargando, error, onReintentar, onAbrirReceta, onCocinar, onPlanear }: Props) {
+export function TarjetaHoy({
+  dias,
+  cargando,
+  error,
+  onReintentar,
+  onAbrirReceta,
+  onCocinar,
+  onPlanear,
+  preparadaHoy = false,
+}: Props) {
   const ahora = new Date();
   const fechaHoy = fechaLocal(ahora);
+  const manana = new Date(ahora);
+  manana.setDate(ahora.getDate() + 1);
   const hoy = dias.find((d) => d.fecha === fechaHoy);
   const semanaVacia = dias.every((d) => !d.item);
   const item = hoy?.item;
@@ -74,10 +86,23 @@ export function TarjetaHoy({ dias, cargando, error, onReintentar, onAbrirReceta,
               {capitalizar(item.momento)} · {item.recetas.tiempo_min} min
             </Text>
           </View>
-          <Pressable style={estilos.boton} onPress={() => onCocinar(item.receta_id)}>
-            <Icono nombre="chef-hat-linear" size={20} color={colors.sobreEncabezado} />
-            <Text style={estilos.textoBoton}>Empezar a cocinar</Text>
-          </Pressable>
+          {preparadaHoy ? (
+            <>
+              <View style={estilos.cocinada}>
+                <Icono nombre="check-circle-linear" size={18} color={colors.texto} />
+                <Text style={estilos.textoCocinada}>¡Ya la cocinaste!</Text>
+              </View>
+              <Pressable style={estilos.botonSecundario} onPress={() => onPlanear(fechaLocal(manana))}>
+                <Icono nombre="calendar-linear" size={20} color={colors.sobreEncabezado} />
+                <Text style={estilos.textoBoton}>Ver qué toca mañana</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable style={estilos.boton} onPress={() => onCocinar(item.receta_id)}>
+              <Icono nombre="chef-hat-linear" size={20} color={colors.sobreEncabezado} />
+              <Text style={estilos.textoBoton}>Empezar a cocinar</Text>
+            </Pressable>
+          )}
         </>
       ) : semanaVacia ? (
         <>
@@ -165,6 +190,33 @@ const estilos = StyleSheet.create({
     minHeight: 50,
     borderRadius: radios.pill,
     backgroundColor: colors.encabezado,
+    marginTop: espaciado.md,
+  },
+  cocinada: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: colors.resaltado,
+    borderRadius: radios.pill,
+    paddingHorizontal: espaciado.sm,
+    paddingVertical: 5,
+    marginTop: espaciado.sm,
+  },
+  textoCocinada: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.base,
+    color: colors.texto,
+  },
+  botonSecundario: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: espaciado.sm,
+    minHeight: 50,
+    borderRadius: radios.pill,
+    borderWidth: 1.5,
+    borderColor: colors.encabezado,
     marginTop: espaciado.md,
   },
   textoBoton: {

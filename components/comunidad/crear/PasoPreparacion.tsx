@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from '../../Icono';
 import { FormularioReceta, PasoForm, nuevaClave } from '../../../hooks/useCrearReceta';
 import { colors, espaciado, fuentes, radios, tamanos, tipografia } from '../../../theme/theme';
 
@@ -57,22 +57,22 @@ export function PasoPreparacion({ form, actualizar }: Props) {
             />
 
             {paso.minutos == null ? (
-              <Pressable onPress={() => cambiar(indice, { minutos: 5 })} style={estilos.chipTiempo}>
-                <Ionicons name="alarm-outline" size={14} color={colors.textoSuave} />
+              <Pressable onPress={() => cambiar(indice, { minutos: 5 })} style={estilos.chipTiempo} accessibilityRole="button">
+                <Icono nombre="alarm-linear" size={14} color={colors.textoSuave} />
                 <Text style={estilos.textoChip}>Temporizador</Text>
               </Pressable>
             ) : (
               <View style={[estilos.chipTiempo, estilos.chipActivo]}>
-                <Pressable onPress={() => cambiarMinutos(indice, paso.minutos!, -1)} hitSlop={8}>
-                  <Ionicons name="remove" size={16} color={colors.textoSuave} />
+                <Pressable onPress={() => cambiarMinutos(indice, paso.minutos!, -1)} hitSlop={8} accessibilityLabel="Menos minutos">
+                  <Icono nombre="minus-linear" size={16} color={colors.textoSuave} />
                 </Pressable>
-                <Ionicons name="alarm-outline" size={14} color={colors.textoSuave} />
+                <Icono nombre="alarm-linear" size={14} color={colors.textoSuave} />
                 <Text style={estilos.textoChip}>{paso.minutos} min</Text>
-                <Pressable onPress={() => cambiarMinutos(indice, paso.minutos!, 1)} hitSlop={8}>
-                  <Ionicons name="add" size={16} color={colors.textoSuave} />
+                <Pressable onPress={() => cambiarMinutos(indice, paso.minutos!, 1)} hitSlop={8} accessibilityLabel="Más minutos">
+                  <Icono nombre="add-linear" size={16} color={colors.textoSuave} />
                 </Pressable>
                 <Pressable onPress={() => cambiar(indice, { minutos: null })} hitSlop={8} accessibilityLabel="Quitar temporizador">
-                  <Ionicons name="close" size={16} color={colors.textoSuave} />
+                  <Icono nombre="close-linear" size={16} color={colors.textoSuave} />
                 </Pressable>
               </View>
             )}
@@ -80,7 +80,7 @@ export function PasoPreparacion({ form, actualizar }: Props) {
 
           <View style={estilos.acciones}>
             <Pressable onPress={() => mover(indice, -1)} disabled={indice === 0} hitSlop={6} accessibilityLabel="Subir paso">
-              <Ionicons name="chevron-up" size={20} color={indice === 0 ? colors.textoTenue : colors.textoSuave} />
+              <Icono nombre="alt-arrow-up-linear" size={20} color={indice === 0 ? colors.textoTenue : colors.textoSuave} />
             </Pressable>
             <Pressable
               onPress={() => mover(indice, 1)}
@@ -88,15 +88,15 @@ export function PasoPreparacion({ form, actualizar }: Props) {
               hitSlop={6}
               accessibilityLabel="Bajar paso"
             >
-              <Ionicons
-                name="chevron-down"
+              <Icono
+                nombre="alt-arrow-down-linear"
                 size={20}
                 color={indice === pasos.length - 1 ? colors.textoTenue : colors.textoSuave}
               />
             </Pressable>
             {pasos.length > 1 && (
               <Pressable onPress={() => quitar(indice)} hitSlop={6} accessibilityLabel="Quitar paso">
-                <Ionicons name="trash-outline" size={18} color={colors.textoSuave} />
+                <Icono nombre="trash-bin-trash-linear" size={18} color={colors.textoSuave} />
               </Pressable>
             )}
           </View>
@@ -104,15 +104,12 @@ export function PasoPreparacion({ form, actualizar }: Props) {
       ))}
 
       {pasos.length < MAX_PASOS && (
-        <Pressable onPress={agregar} style={estilos.botonAgregar}>
-          <Ionicons name="add" size={20} color={colors.primario} />
+        <Pressable onPress={agregar} style={estilos.botonAgregar} accessibilityRole="button">
+          <Icono nombre="add-linear" size={20} color={colors.primario} />
           <Text style={estilos.textoAgregar}>Agregar paso</Text>
         </Pressable>
       )}
 
-      <Text style={[tipografia.chico, { textAlign: 'center' }]}>
-        Escribe un paso a la vez, como se lo explicarías a alguien en tu cocina.
-      </Text>
     </View>
   );
 }
@@ -126,7 +123,7 @@ const estilos = StyleSheet.create({
     gap: 12,
     backgroundColor: colors.superficie,
     borderRadius: radios.md,
-    padding: 12,
+    padding: 14,
   },
   numero: {
     width: 30,
@@ -143,8 +140,9 @@ const estilos = StyleSheet.create({
   },
   input: {
     ...tipografia.cuerpo,
-    minHeight: 44,
+    minHeight: 48,
     paddingVertical: 4,
+    textAlignVertical: 'top',
   },
   chipTiempo: {
     flexDirection: 'row',

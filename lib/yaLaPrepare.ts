@@ -58,7 +58,13 @@ async function registrarEnAlbum(recetaId: number): Promise<{ ok: boolean; mensaj
     .from('album_recetas')
     .insert({ album_id: album.id, receta_id: recetaId });
 
-  if (errorInsertar && errorInsertar.code !== '23505') {
+  if (errorInsertar?.code === '23505') {
+    await supabase.from('album_recetas').delete().eq('album_id', album.id).eq('receta_id', recetaId);
+    const { error: errorReinsertar } = await supabase
+      .from('album_recetas')
+      .insert({ album_id: album.id, receta_id: recetaId });
+    if (errorReinsertar) return { ok: false, mensaje: textoError(errorReinsertar) };
+  } else if (errorInsertar) {
     return { ok: false, mensaje: textoError(errorInsertar) };
   }
   return { ok: true };

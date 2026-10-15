@@ -1,137 +1,156 @@
-import { Ref, useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TextInputProps,
-  TouchableOpacity,
-  StyleSheet,
-  useWindowDimensions,
-} from "react-native";
-import { colors, espaciado, radios, tipografia, fuentes } from "../theme/theme";
+import { Ref, useState } from 'react';
+import { View, Text, TextInput, TextInputProps, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import Icono from '../components/Icono';
+import { colors, espaciado, radios, fuentes, tamanos } from '../theme/theme';
 
 // CampoFormulario: un campo con su etiqueta arriba, el error debajo y, si es
-// contraseña, un botón de "Mostrar"/"Ocultar". Se usa en las tres pantallas
-// de contraseña para que todas se vean y se comporten igual.
+// contraseña, un botón de "Mostrar"/"Ocultar".
 type Props = TextInputProps & {
-  etiqueta: string; // texto que siempre se ve arriba del campo
-  error?: string; // (nuevo) mensaje de error debajo del campo, en vez de alert()
-  ayuda?: string; // texto de ayuda que se ve desde antes de escribir
-  esContrasena?: boolean; // agrega el botón "Mostrar"/"Ocultar"
-  ref?: Ref<TextInput>; // para pasar al siguiente campo con el teclado
+  etiqueta: string;
+  error?: string;
+  ayuda?: string;
+  esContrasena?: boolean;
+  ref?: Ref<TextInput>;
 };
 
-// (clase) Componente declarado como función que recibe props
-export default function CampoFormulario({
-  etiqueta,
-  error,
-  ayuda,
-  esContrasena = false,
-  ref,
-  ...propsDelCampo
-}: Props) {
-  // (clase) useState para saber si la contraseña se ve o está oculta
+export default function CampoFormulario({ etiqueta, error, ayuda, esContrasena = false, ref, ...propsDelCampo }: Props) {
   const { fontScale, width } = useWindowDimensions();
   const apilar = fontScale >= 1.4 || width < 340;
   const [oculta, setOculta] = useState(true);
+  const [enfocado, setEnfocado] = useState(false);
 
-  const hayError = error !== undefined && error !== "";
+  const hayError = error !== undefined && error !== '';
+  const bloqueado = propsDelCampo.editable === false;
 
   return (
     <View style={styles.contenedor}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
 
-      <View style={[styles.fila, apilar && { flexDirection: "column", alignItems: "stretch" }, hayError && styles.filaConError]}>
+      <View
+        style={[
+          styles.fila,
+          apilar && { flexDirection: 'column', alignItems: 'stretch' },
+          enfocado && styles.filaEnfocada,
+          hayError && styles.filaConError,
+          bloqueado && styles.filaBloqueada,
+        ]}
+      >
         <TextInput
           ref={ref}
-          placeholderTextColor={colors.textoSecundario}
+          placeholderTextColor={colors.textoTenue}
           secureTextEntry={esContrasena && oculta}
           accessibilityLabel={etiqueta}
           accessibilityHint={ayuda}
           {...propsDelCampo}
-          style={[styles.input, apilar && { flex: 0 }, propsDelCampo.style]}
+          onFocus={(e) => {
+            setEnfocado(true);
+            propsDelCampo.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setEnfocado(false);
+            propsDelCampo.onBlur?.(e);
+          }}
+          style={[styles.input, apilar && { flex: 0 }, bloqueado && { color: colors.textoSuave }, propsDelCampo.style]}
         />
 
         {esContrasena && (
-          <TouchableOpacity
+          <Pressable
             style={styles.botonMostrar}
             onPress={() => setOculta(!oculta)}
-            disabled={propsDelCampo.editable === false}
-            accessibilityState={{ disabled: propsDelCampo.editable === false }}
+            disabled={bloqueado}
+            accessibilityState={{ disabled: bloqueado }}
             accessibilityRole="button"
-            accessibilityLabel={(oculta ? "Mostrar: " : "Ocultar: ") + etiqueta}
+            accessibilityLabel={(oculta ? 'Mostrar: ' : 'Ocultar: ') + etiqueta}
           >
-            <Text style={styles.textoMostrar}>{oculta ? "Mostrar" : "Ocultar"}</Text>
-          </TouchableOpacity>
+            <Icono nombre={oculta ? 'eye-linear' : 'eye-closed-linear'} size={20} color={colors.acentoOscuro} />
+            <Text style={styles.textoMostrar}>{oculta ? 'Mostrar' : 'Ocultar'}</Text>
+          </Pressable>
         )}
       </View>
 
       {ayuda !== undefined && !hayError && <Text style={styles.ayuda}>{ayuda}</Text>}
 
-      {/* (nuevo) accessibilityLiveRegion hace que el lector de pantalla
-          lea el error en cuanto aparece (Android) */}
       {hayError && (
-        <Text style={styles.error} accessibilityLiveRegion="polite">
-          {error}
-        </Text>
+        <View style={styles.filaError}>
+          <Icono nombre="danger-triangle-linear" size={16} color={colors.peligro} />
+          <Text style={styles.error} accessibilityLiveRegion="polite">
+            {error}
+          </Text>
+        </View>
       )}
     </View>
   );
 }
 
-// (clase) Estilos al final del archivo. Para cambiar el diseño, solo se toca esto.
 const styles = StyleSheet.create({
   contenedor: {
     marginBottom: espaciado.md,
   },
   etiqueta: {
-    ...tipografia.subtitulo,
-    marginBottom: espaciado.xs,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.cuerpo,
+    color: colors.texto,
+    marginBottom: 6,
   },
   fila: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.superficie,
+    borderWidth: 1.5,
     borderColor: colors.borde,
     borderRadius: radios.md,
   },
+  filaEnfocada: {
+    borderColor: colors.encabezado,
+  },
   filaConError: {
-    borderColor: colors.error,
-    borderWidth: 2,
+    borderColor: colors.peligro,
+    backgroundColor: colors.peligroSuave,
+  },
+  filaBloqueada: {
+    backgroundColor: colors.fondoHundido,
   },
   input: {
     flex: 1,
-    minHeight: 56,
+    minHeight: 54,
     paddingHorizontal: espaciado.md,
     paddingVertical: espaciado.sm,
-    color: colors.textoPrincipal,
-    fontSize: 17,
+    color: colors.texto,
+    fontSize: tamanos.grande,
     fontFamily: fuentes.regular,
   },
   botonMostrar: {
-    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    minHeight: 54,
     minWidth: 48,
     paddingHorizontal: espaciado.md,
-    justifyContent: "center",
-    alignItems: "center",
   },
   textoMostrar: {
-    color: colors.olivaOscuro,
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: "700",
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.base,
+    color: colors.acentoOscuro,
   },
   ayuda: {
-    ...tipografia.cuerpo,
-    fontSize: 16,
-    lineHeight: 24,
-    marginTop: espaciado.xs,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.base,
+    lineHeight: 21,
+    color: colors.textoSuave,
+    marginTop: 6,
+  },
+  filaError: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 6,
   },
   error: {
-    color: colors.error,
-    fontSize: 16,
-    lineHeight: 24,
-    marginTop: espaciado.xs,
+    flex: 1,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    lineHeight: 21,
+    color: colors.peligro,
   },
 });

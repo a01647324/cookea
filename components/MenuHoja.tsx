@@ -1,13 +1,14 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { HojaInferior } from './HojaInferior';
-import { colors, espaciado, fuentes, radios, tamanos, tipografia } from '../theme/theme';
+import Icono from './Icono';
+import { IconoCompat, NombreIconoCompat } from './IconoCompat';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
 export interface OpcionMenu {
   texto: string;
   descripcion?: string;
-  icono: keyof typeof Ionicons.glyphMap;
+  icono: NombreIconoCompat;
   peligro?: boolean;
   onPress: () => void;
 }
@@ -22,83 +23,103 @@ interface Props {
 export function MenuHoja({ visible, titulo, opciones, onCerrar }: Props) {
   return (
     <HojaInferior visible={visible} onCerrar={onCerrar}>
-      <View style={estilos.contenido}>
-        {!!titulo && <Text style={estilos.titulo}>{titulo}</Text>}
+      {!!titulo && (
+        <Text style={estilos.titulo} numberOfLines={2}>
+          {titulo}
+        </Text>
+      )}
 
-        {opciones.map((o) => {
-          const color = o.peligro ? colors.peligro : colors.primario;
+      <View style={estilos.grupo}>
+        {opciones.map((o, i) => {
+          const color = o.peligro ? colors.peligro : colors.texto;
           return (
             <Pressable
               key={o.texto}
               onPress={o.onPress}
-              style={({ pressed }) => [estilos.opcion, pressed && estilos.presionada]}
+              style={({ pressed }) => [estilos.opcion, i > 0 && estilos.separador, pressed && estilos.presionada]}
+              accessibilityRole="button"
             >
-              <View style={[estilos.icono, { backgroundColor: o.peligro ? colors.peligroSuave : colors.calidoSuave }]}>
-                <Ionicons name={o.icono} size={18} color={color} />
+              <View style={[estilos.icono, { backgroundColor: o.peligro ? colors.peligroSuave : colors.fondo }]}>
+                <IconoCompat nombre={o.icono} size={22} color={o.peligro ? colors.peligro : colors.textoSuave} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[estilos.texto, { color }]}>{o.texto}</Text>
-                {!!o.descripcion && <Text style={tipografia.chico}>{o.descripcion}</Text>}
+                {!!o.descripcion && <Text style={estilos.descripcion}>{o.descripcion}</Text>}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textoTenue} />
+              {!o.peligro && <Icono nombre="alt-arrow-right-linear" size={20} color={colors.textoTenue} />}
             </Pressable>
           );
         })}
-
-        <Pressable onPress={onCerrar} style={estilos.cancelar}>
-          <Text style={estilos.textoCancelar}>Cancelar</Text>
-        </Pressable>
       </View>
+
+      <Pressable onPress={onCerrar} style={estilos.cancelar} accessibilityRole="button">
+        <Text style={estilos.textoCancelar}>Cancelar</Text>
+      </Pressable>
     </HojaInferior>
   );
 }
 
 const estilos = StyleSheet.create({
-  contenido: {
-    gap: espaciado.sm,
-  },
   titulo: {
-    ...tipografia.titulo,
+    fontFamily: fuentes.titulo,
     fontSize: 21,
-    color: colors.primario,
+    lineHeight: 28,
+    color: colors.texto,
     textAlign: 'center',
-    marginBottom: espaciado.xs,
+    marginBottom: espaciado.md,
+    paddingHorizontal: espaciado.md,
+  },
+  grupo: {
+    backgroundColor: colors.superficie,
+    borderRadius: radios.lg,
+    overflow: 'hidden',
   },
   opcion: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: colors.superficie,
-    borderRadius: radios.md,
+    minHeight: 66,
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
+  },
+  separador: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borde,
   },
   presionada: {
-    opacity: 0.7,
+    backgroundColor: colors.fondo,
   },
   icono: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   texto: {
-    fontFamily: fuentes.semibold,
+    fontFamily: fuentes.negrita,
     fontSize: tamanos.destacado,
   },
+  descripcion: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    lineHeight: 19,
+    color: colors.textoSuave,
+    marginTop: 1,
+  },
   cancelar: {
+    minHeight: 54,
+    borderRadius: radios.pill,
+    backgroundColor: colors.superficie,
+    borderWidth: 1.5,
+    borderColor: colors.borde,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    borderWidth: 1.5,
-    borderColor: colors.primario,
-    borderRadius: radios.pill,
-    marginTop: espaciado.xs,
+    marginTop: espaciado.md,
   },
   textoCancelar: {
     fontFamily: fuentes.negrita,
     fontSize: tamanos.destacado,
-    color: colors.primario,
+    color: colors.texto,
   },
 });

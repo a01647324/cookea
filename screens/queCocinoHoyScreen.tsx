@@ -1,19 +1,25 @@
 import React, { useMemo, useState } from 'react';
-import { Image, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors, coloresTarjetaReceta, espaciado, radios, tipografia } from '../theme/theme';
 import { useRecomendaciones } from '../hooks/useRecomendaciones';
 import { agruparPorFaltantes } from '../lib/recomendador/recomendar';
 import { TarjetaRecomendada } from '../components/recomendador/tarjetaRecomendada';
-import { VistaCargando, VistaError, VistaVacia } from '../components/StateViews';
+import { CarruselRecetas } from '../components/recomendador/CarruselRecetas';
+import { VistaError } from '../components/StateViews';
+import { EstadoVacio } from '../components/EstadoVacio';
+import { Esqueleto } from '../components/Esqueleto';
+import Icono from '../components/Icono';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
 export function QueCocinoHoyScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { items, alacenaVacia, cargando, error, recargar } = useRecomendaciones(80);
   const [refrescando, setRefrescando] = useState(false);
 
   const secciones = useMemo(() => agruparPorFaltantes(items), [items]);
+  const [principal, ...resto] = secciones;
 
   async function alJalar() {
     setRefrescando(true);
@@ -21,140 +27,259 @@ export function QueCocinoHoyScreen() {
     setRefrescando(false);
   }
 
-  const encabezadoLista = (
-    <View>
-      <View style={estilos.tituloBloque}>
-        <Text style={tipografia.titulo}>¿Qué cocino hoy?</Text>
-        <Text style={estilos.subtitulo}>
-          {alacenaVacia
-            ? 'Te mostramos ideas. Agrega ingredientes para verlas a tu medida.'
-            : 'Ordenadas según lo que tienes en tu alacena.'}
-        </Text>
-      </View>
+  const abrir = (recetaId: number) => navigation.navigate('RecetaDetalle', { recetaId });
 
-      {alacenaVacia && (
-        <Pressable
-          onPress={() => navigation.navigate('Alacena')}
-          style={estilos.avisoVacia}
-          accessibilityRole="button"
-        >
-          <Text style={estilos.avisoVaciaTexto}>
-            Tu alacena está vacía. Toca aquí para agregar lo que tienes →
+  function contenido() {
+    if (cargando) {
+      return (
+        <View style={estilos.bloque}>
+          <Esqueleto ancho="55%" alto={22} />
+          <View style={estilos.esqueletoCarrusel}>
+            <Esqueleto ancho={40} alto={260} radio={24} />
+            <Esqueleto ancho="70%" alto={320} radio={24} />
+            <Esqueleto ancho={40} alto={260} radio={24} />
+          </View>
+          <Esqueleto ancho="40%" alto={22} estilo={{ marginTop: espaciado.lg }} />
+          <View style={estilos.esqueletoFila}>
+            <Esqueleto ancho={160} alto={170} radio={20} />
+            <Esqueleto ancho={160} alto={170} radio={20} />
+          </View>
+        </View>
+      );
+    }
+    if (error) return <VistaError mensaje={error} onReintentar={recargar} />;
+    if (!principal) {
+      return (
+        <EstadoVacio
+          imagen={require('../assets/images/vacios/sin_recomendaciones.webp')}
+          titulo="Aún no hay recetas para ti"
+          texto="No encontramos recetas que puedas preparar. Explora el recetario para encontrar ideas."
+          accion={{ texto: 'Ir al recetario', onPress: () => navigation.navigate('Recetario') }}
+        />
+      );
+    }
+
+    return (
+      <>
+        <View style={[estilos.encabezadoSeccion, estilos.bloque]}>
+          <Text style={estilos.tituloSeccion}>{principal.titulo}</Text>
+          <View style={estilos.contador}>
+            <Text style={estilos.textoContador}>
+              {principal.data.length} {principal.data.length === 1 ? 'receta' : 'recetas'}
+            </Text>
+          </View>
+        </View>
+        <CarruselRecetas items={principal.data} onAbrir={abrir} />
+
+        {resto.map((seccion) => (
+          <View key={seccion.clave}>
+            <View style={[estilos.encabezadoSeccion, estilos.bloque]}>
+              <Text style={estilos.tituloSeccion}>{seccion.titulo}</Text>
+              <Text style={estilos.numero}>{seccion.data.length}</Text>
+            </View>
+            <FlatList
+              data={seccion.data}
+              horizontal
+              keyExtractor={(r) => String(r.receta.id)}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={estilos.fila}
+              ItemSeparatorComponent={() => <View style={{ width: espaciado.sm }} />}
+              renderItem={({ item }) => (
+                <TarjetaRecomendada variante="mini" recomendacion={item} onPress={() => abrir(item.receta.id)} />
+              )}
+            />
+          </View>
+        ))}
+
+        <View style={[estilos.nota, estilos.bloque]}>
+          <Icono nombre="health-linear" size={20} color={colors.serenoIntenso} />
+          <Text style={estilos.textoNota}>
+            Ya quitamos las recetas con tus alergias. Aun así, revisa los ingredientes antes de cocinar.
           </Text>
-        </Pressable>
-      )}
-
-      <Text style={estilos.nota}>
-        Ya quitamos las recetas con tus alergias. Aun así, revisa la lista de ingredientes antes de cocinar.
-      </Text>
-    </View>
-  );
+        </View>
+      </>
+    );
+  }
 
   return (
-    <SafeAreaView style={estilos.pantalla} edges={['top']}>
-      <View style={estilos.encabezado}>
-        <View style={estilos.ladoEncabezado}>
+    <View style={estilos.pantalla}>
+      <ScrollView
+        contentContainerStyle={{ paddingTop: insets.top + espaciado.sm, paddingBottom: 120, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={alJalar} tintColor={colors.encabezado} />}
+      >
+        <View style={estilos.bloque}>
           {navigation.canGoBack() && (
-            <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
-              <Text style={estilos.flecha}>←</Text>
+            <Pressable onPress={() => navigation.goBack()} style={estilos.botonAtras} accessibilityLabel="Regresar">
+              <Icono nombre="arrow-left-linear" size={22} color={colors.texto} />
             </Pressable>
           )}
+          <Text style={estilos.titulo}>¿Qué cocino hoy?</Text>
+          <Text style={estilos.subtitulo}>
+            {alacenaVacia ? 'Ideas para empezar a cocinar' : 'Con lo que ya tienes en casa'}
+          </Text>
         </View>
-        <Image
-          source={require('../assets/images/cookea-logo.png')}
-          style={estilos.logo}
-          resizeMode="contain"
-        />
-        <View style={estilos.ladoEncabezado} />
-      </View>
 
-      {cargando ? (
-        <VistaCargando mensaje="Buscando qué puedes cocinar..." />
-      ) : error ? (
-        <VistaError mensaje={error} onReintentar={recargar} />
-      ) : (
-        <SectionList
-          sections={secciones}
-          keyExtractor={(r) => String(r.receta.id)}
-          ListHeaderComponent={encabezadoLista}
-          ListEmptyComponent={<VistaVacia mensaje="Todavía no hay recetas disponibles para recomendarte." />}
-          stickySectionHeadersEnabled={false}
-          contentContainerStyle={estilos.contenido}
-          refreshControl={<RefreshControl refreshing={refrescando} onRefresh={alJalar} />}
-          renderSectionHeader={({ section }) => (
-            <View style={estilos.seccionFila}>
-              <Text style={tipografia.subtitulo}>{section.titulo}</Text>
-              <Text style={tipografia.chico}>{section.data.length}</Text>
-            </View>
-          )}
-          renderItem={({ item, index }) => (
-            <TarjetaRecomendada
-              recomendacion={item}
-              colorFondo={coloresTarjetaReceta[index % coloresTarjetaReceta.length]}
-              onPress={() => navigation.navigate('RecetaDetalle', { recetaId: item.receta.id })}
+        {!cargando && !error && alacenaVacia && (
+          <Pressable
+            onPress={() => navigation.navigate('Alacena')}
+            style={[estilos.aviso, estilos.bloque]}
+            accessibilityRole="button"
+          >
+            <Image
+              source={require('../assets/images/vacios/alacena_ideas.webp')}
+              style={estilos.imagenAviso}
+              resizeMode="contain"
             />
-          )}
-        />
-      )}
-    </SafeAreaView>
+            <View style={{ flex: 1 }}>
+              <Text style={estilos.tituloAviso}>Tu alacena está vacía</Text>
+              <Text style={estilos.textoAviso}>Agrega lo que tienes y te mostramos recetas a tu medida.</Text>
+              <View style={estilos.botonAviso}>
+                <Text style={estilos.textoBotonAviso}>Ir a mi alacena</Text>
+                <Icono nombre="alt-arrow-right-linear" size={16} color={colors.sobreEncabezado} />
+              </View>
+            </View>
+          </Pressable>
+        )}
+
+        {contenido()}
+      </ScrollView>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.fondo,
   },
-  encabezado: {
+  bloque: {
+    marginHorizontal: espaciado.md,
+  },
+  botonAtras: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.superficie,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: espaciado.md,
+  },
+  titulo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 31,
+    lineHeight: 39,
+    color: colors.texto,
+  },
+  subtitulo: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    color: colors.textoSuave,
+    marginTop: 2,
+  },
+  aviso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaciado.sm,
+    backgroundColor: colors.superficie,
+    borderRadius: radios.lg,
+    padding: espaciado.sm,
+    marginTop: espaciado.md,
+  },
+  imagenAviso: {
+    width: 96,
+    height: 96,
+  },
+  tituloAviso: {
+    fontFamily: fuentes.titulo,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.texto,
+  },
+  textoAviso: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    lineHeight: 18,
+    color: colors.textoSuave,
+    marginTop: 2,
+  },
+  botonAviso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    backgroundColor: colors.encabezado,
+    borderRadius: radios.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginTop: espaciado.sm,
+  },
+  textoBotonAviso: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.chico,
+    color: colors.sobreEncabezado,
+  },
+  encabezadoSeccion: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: espaciado.lg,
+    marginBottom: espaciado.xs,
+  },
+  tituloSeccion: {
+    flex: 1,
+    fontFamily: fuentes.titulo,
+    fontSize: 20,
+    lineHeight: 27,
+    color: colors.texto,
+  },
+  contador: {
+    backgroundColor: colors.acentoSuave,
+    borderRadius: radios.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  textoContador: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.chico,
+    color: colors.acentoOscuro,
+  },
+  numero: {
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
+  },
+  fila: {
     paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-  },
-  ladoEncabezado: {
-    width: 40,
-  },
-  flecha: {
-    fontSize: 22,
-    color: colors.textoPrincipal,
-  },
-  logo: {
-    width: 130,
-    height: 34,
-  },
-  contenido: {
-    paddingHorizontal: espaciado.md,
-    paddingBottom: espaciado.xl,
-  },
-  tituloBloque: {
-    marginTop: espaciado.sm,
-  },
-  subtitulo: {
-    ...tipografia.cuerpo,
-    color: colors.textoSecundario,
-    marginTop: espaciado.xs,
-  },
-  avisoVacia: {
-    backgroundColor: colors.mostaza,
-    borderRadius: radios.md,
-    padding: espaciado.md,
-    marginTop: espaciado.md,
-  },
-  avisoVaciaTexto: {
-    color: colors.textoPrincipal,
-    fontWeight: '600',
-    fontSize: 14,
+    paddingVertical: espaciado.xs,
   },
   nota: {
-    ...tipografia.chico,
-    marginTop: espaciado.md,
-  },
-  seccionFila: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: espaciado.sm,
+    backgroundColor: colors.serenoSuave,
+    borderRadius: radios.md,
+    padding: 12,
     marginTop: espaciado.lg,
-    marginBottom: espaciado.sm,
+  },
+  textoNota: {
+    flex: 1,
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    lineHeight: 18,
+    color: colors.texto,
+  },
+  esqueletoCarrusel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: espaciado.sm,
+    marginTop: espaciado.md,
+    marginHorizontal: -espaciado.md - 20,
+  },
+  esqueletoFila: {
+    flexDirection: 'row',
+    gap: espaciado.sm,
+    marginTop: espaciado.sm,
   },
 });

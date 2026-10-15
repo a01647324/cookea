@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import Icono from '../Icono';
 import { HojaInferior } from '../HojaInferior';
 import { EstadoEnvio } from './EstadoEnvio';
 import { useCalificacion } from '../../hooks/useCalificacion';
@@ -75,7 +75,7 @@ export function ModalCalificar({ visible, recetaId, nombre, autorAlias, fotoUrl,
               <Image source={{ uri: fotoUrl }} style={estilos.miniatura} contentFit="cover" />
             ) : (
               <View style={[estilos.miniatura, estilos.miniaturaRespaldo]}>
-                <Ionicons name="restaurant-outline" size={20} color={colors.superficieCalida} />
+                <Icono nombre="chef-hat-linear" size={22} color={colors.superficie} />
               </View>
             )}
             <View style={{ flex: 1 }}>
@@ -92,11 +92,13 @@ export function ModalCalificar({ visible, recetaId, nombre, autorAlias, fotoUrl,
                 key={n}
                 onPress={() => setEstrellas(n)}
                 hitSlop={4}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: n === estrellas }}
                 accessibilityLabel={`${n} ${n === 1 ? 'estrella' : 'estrellas'}`}
               >
-                <Ionicons
-                  name={n <= estrellas ? 'star' : 'star-outline'}
-                  size={40}
+                <Icono
+                  nombre={n <= estrellas ? 'star-bold' : 'star-linear'}
+                  size={42}
                   color={n <= estrellas ? colors.calido : colors.textoTenue}
                 />
               </Pressable>
@@ -131,9 +133,12 @@ export function ModalCalificar({ visible, recetaId, nombre, autorAlias, fotoUrl,
             {enviando ? (
               <ActivityIndicator color={colors.sobrePrimario} />
             ) : (
-              <Text style={estilos.textoBoton}>
-                {miCalificacion ? 'Actualizar calificación' : 'Enviar calificación'}
-              </Text>
+              <>
+                <Icono nombre="star-linear" size={18} color={colors.sobrePrimario} />
+                <Text style={estilos.textoBoton}>
+                  {miCalificacion ? 'Actualizar calificación' : 'Enviar calificación'}
+                </Text>
+              </>
             )}
           </Pressable>
         </View>
@@ -150,13 +155,14 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    backgroundColor: colors.superficie,
+    borderRadius: radios.lg,
+    padding: 10,
   },
   miniatura: {
     width: 54,
     height: 54,
     borderRadius: 27,
-    borderWidth: 3,
-    borderColor: colors.superficie,
   },
   miniaturaRespaldo: {
     backgroundColor: colors.neutro,
@@ -177,7 +183,8 @@ const estilos = StyleSheet.create({
   filaEstrellas: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
+    paddingVertical: 4,
   },
   palabra: {
     fontFamily: fuentes.negrita,
@@ -198,8 +205,8 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borde,
     borderRadius: radios.md,
-    padding: 12,
-    minHeight: 90,
+    padding: 14,
+    minHeight: 96,
   },
   contador: {
     ...tipografia.chico,
@@ -207,10 +214,13 @@ const estilos = StyleSheet.create({
     marginTop: -6,
   },
   boton: {
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
     backgroundColor: colors.primario,
     borderRadius: radios.pill,
-    paddingVertical: 15,
     marginTop: espaciado.xs,
   },
   botonDeshabilitado: {

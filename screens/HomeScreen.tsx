@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useWeekPlan } from '../hooks/useWeekPlan';
+import { formatearFechaLocal } from '../hooks/useWeeklyPlanner';
+import { usePreparadasHoy } from '../hooks/usePreparadasHoy';
 import { useRecomendaciones } from '../hooks/useRecomendaciones';
 import { useComunidad } from '../hooks/useComunidad';
 import { SearchBar } from '../components/SearchBar';
@@ -30,6 +32,7 @@ export function HomeScreen() {
 
   const { perfil, recargar: recargarPerfil } = useUserProfile();
   const { dias, cargando: cargandoPlan, error: errorPlan, recargar: recargarPlan } = useWeekPlan();
+  const { ids: preparadasHoy, recargar: recargarPreparadas } = usePreparadasHoy();
   const {
     items: destacadas,
     alacenaVacia,
@@ -45,7 +48,8 @@ export function HomeScreen() {
     useCallback(() => {
       recargarPlan();
       recargarPerfil();
-    }, [recargarPlan, recargarPerfil])
+      recargarPreparadas();
+    }, [recargarPlan, recargarPerfil, recargarPreparadas])
   );
 
   async function alJalarParaRefrescar() {
@@ -55,6 +59,7 @@ export function HomeScreen() {
         recargarPlan(),
         recargarDestacadas(),
         recargarPerfil(),
+        recargarPreparadas(),
         Promise.resolve(refrescarComunidad()),
       ]);
     } finally {
@@ -104,6 +109,9 @@ export function HomeScreen() {
       onPress: () => abrirComunidad(),
     },
   ];
+
+  const recetaDeHoy = dias.find((d) => d.fecha === formatearFechaLocal(new Date()))?.item;
+  const preparadaHoy = recetaDeHoy ? preparadasHoy.has(recetaDeHoy.receta_id) : false;
 
   return (
     <View style={estilos.pantalla}>
@@ -156,6 +164,7 @@ export function HomeScreen() {
 
         <View style={estilos.montada}>
           <TarjetaHoy
+            preparadaHoy={preparadaHoy}
             dias={dias}
             cargando={cargandoPlan}
             error={errorPlan}

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { colors, espaciado, radios, tipografia } from '../../theme/theme';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { HojaInferior } from '../HojaInferior';
+import Icono from '../Icono';
 import { AlacenaItem } from '../../types/alacena';
 import { UnidadUI, aBase, convertirUI, desdeBase, opcionesUnidad } from '../../lib/unidades';
 import { mostrarAviso } from '../../lib/avisos';
-import { etiquetaPasillo } from '../../constants/categorias';
+import { etiquetaPasillo, haceCuanto } from '../../constants/categorias';
 import { SelectorUnidad } from './selectorUnidad';
 import { IngredienteImagen } from './ingredienteImagen';
+import { colors, espaciado, fuentes, radios, tamanos } from '../../theme/theme';
 
 interface Props {
   item: AlacenaItem | null;
@@ -20,62 +22,60 @@ function aTexto(n: number): string {
 }
 
 export function EditarItemModal({ item, onCerrar, onGuardar, onEliminar }: Props) {
+  const [actual, setActual] = useState<AlacenaItem | null>(item);
   const [texto, setTexto] = useState('');
   const [unidad, setUnidad] = useState<UnidadUI>('pza');
   const [usarPronto, setUsarPronto] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    if (item) {
-      const { valor, unidad: u } = desdeBase(item.cantidad, item.ingredientes.unidad);
-      setTexto(aTexto(valor));
-      setUnidad(u);
-      setUsarPronto(item.usar_pronto);
-      setGuardando(false);
-    }
+    if (!item) return;
+    const { valor, unidad: u } = desdeBase(item.cantidad, item.ingredientes.unidad);
+    setActual(item);
+    setTexto(aTexto(valor));
+    setUnidad(u);
+    setUsarPronto(item.usar_pronto);
+    setGuardando(false);
   }, [item]);
 
-  if (!item) return null;
-  const ing = item.ingredientes;
-
   function cambiarUnidad(nueva: UnidadUI) {
-    const actual = parseFloat(texto.replace(',', '.'));
-    if (Number.isFinite(actual)) setTexto(aTexto(convertirUI(actual, unidad, nueva)));
+    const valor = parseFloat(texto.replace(',', '.'));
+    if (Number.isFinite(valor)) setTexto(aTexto(convertirUI(valor, unidad, nueva)));
     setUnidad(nueva);
   }
 
   async function guardar() {
+    if (!actual) return;
     const valor = parseFloat(texto.replace(',', '.'));
     if (!Number.isFinite(valor) || valor <= 0) {
       mostrarAviso('Cantidad no válida', 'Escribe un número mayor a 0.');
       return;
     }
     setGuardando(true);
-    await onGuardar(item!, aBase(valor, unidad), usarPronto);
+    await onGuardar(actual, aBase(valor, unidad), usarPronto);
     setGuardando(false);
   }
 
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onCerrar}>
-      <View style={estilos.fondo}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCerrar} />
+  const ing = actual?.ingredientes;
 
-        <View style={estilos.tarjeta}>
+  return (
+    <HojaInferior visible={!!item} onCerrar={onCerrar}>
+      {actual && ing && (
+        <>
           <View style={estilos.cabecera}>
             <IngredienteImagen
               nombre={ing.nombre}
               categoria={ing.categoria}
               url={ing.imagen_url}
-              tamano={56}
-              style={{ marginRight: 12 }}
+              tamano={64}
+              style={{ borderRadius: 32 }}
             />
             <View style={{ flex: 1 }}>
-              <Text style={tipografia.titulo}>{ing.nombre}</Text>
-              <Text style={tipografia.chico}>{etiquetaPasillo(ing.categoria ?? 'otros')}</Text>
+              <Text style={estilos.nombre}>{ing.nombre}</Text>
+              <Text style={estilos.meta}>
+                {etiquetaPasillo(ing.categoria ?? 'otros')} · {haceCuanto(actual.agregado_en)}
+              </Text>
             </View>
-            <Pressable onPress={onCerrar} hitSlop={10}>
-              <Text style={estilos.cerrar}>✕</Text>
-            </Pressable>
           </View>
 
           <Text style={estilos.etiqueta}>Cantidad que tienes</Text>
@@ -86,121 +86,141 @@ export function EditarItemModal({ item, onCerrar, onGuardar, onEliminar }: Props
               keyboardType="decimal-pad"
               style={estilos.input}
               selectTextOnFocus
+              autoComplete="off"
+              importantForAutofill="no"
             />
-            <SelectorUnidad
-              opciones={opcionesUnidad(ing.unidad)}
-              seleccionada={unidad}
-              onCambiar={cambiarUnidad}
-            />
+            <SelectorUnidad opciones={opcionesUnidad(ing.unidad)} seleccionada={unidad} onCambiar={cambiarUnidad} />
           </View>
 
           <View style={estilos.filaPronto}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={tipografia.subtitulo}>Usar pronto</Text>
-              <Text style={tipografia.chico}>Márcalo si se va a echar a perder pronto.</Text>
+            <View style={estilos.circuloPronto}>
+              <Icono nombre="hourglass-linear" size={22} color={colors.destacadoIntenso} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={estilos.tituloPronto}>Usar pronto</Text>
+              <Text style={estilos.meta}>Márcalo si se va a echar a perder.</Text>
             </View>
             <Switch
               value={usarPronto}
               onValueChange={setUsarPronto}
-              trackColor={{ false: colors.borde, true: colors.oliva }}
-              thumbColor={colors.surface}
+              trackColor={{ false: colors.borde, true: colors.encabezado }}
+              thumbColor={colors.superficie}
             />
           </View>
 
-          <Pressable onPress={guardar} disabled={guardando} style={[estilos.botonGuardar, guardando && { opacity: 0.6 }]}>
-            <Text style={estilos.textoGuardar}>{guardando ? 'Guardando...' : 'Guardar cambios'}</Text>
+          <Pressable
+            onPress={guardar}
+            disabled={guardando}
+            style={[estilos.botonGuardar, guardando && { opacity: 0.6 }]}
+          >
+            {guardando ? (
+              <ActivityIndicator color={colors.sobreEncabezado} />
+            ) : (
+              <Text style={estilos.textoGuardar}>Guardar cambios</Text>
+            )}
           </Pressable>
 
-          <Pressable onPress={() => onEliminar(item)} style={estilos.botonEliminar}>
-            <Text style={estilos.textoEliminar}>🗑️  Eliminar de mi alacena</Text>
+          <Pressable onPress={() => onEliminar(actual)} style={estilos.botonEliminar}>
+            <Icono nombre="trash-bin-trash-linear" size={20} color={colors.peligro} />
+            <Text style={estilos.textoEliminar}>Quitar de mi alacena</Text>
           </Pressable>
-        </View>
-      </View>
-    </Modal>
+        </>
+      )}
+    </HojaInferior>
   );
 }
 
 const estilos = StyleSheet.create({
-  fondo: {
-    flex: 1,
-    backgroundColor: 'rgba(58,46,34,0.45)',
-    justifyContent: 'center',
-    padding: espaciado.md,
-  },
-  tarjeta: {
-    backgroundColor: colors.background,
-    borderRadius: 24,
-    padding: espaciado.md,
-  },
   cabecera: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: espaciado.md,
+    gap: 14,
+    marginBottom: espaciado.lg,
   },
-  iconoCaja: {
-    width: 56,
-    height: 56,
-    borderRadius: radios.md,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+  nombre: {
+    fontFamily: fuentes.titulo,
+    fontSize: 22,
+    lineHeight: 29,
+    color: colors.texto,
   },
-  icono: {
-    fontSize: 30,
-  },
-  cerrar: {
-    fontSize: 20,
-    color: colors.textoSecundario,
+  meta: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.chico,
+    lineHeight: 19,
+    color: colors.textoSuave,
   },
   etiqueta: {
-    ...tipografia.chico,
-    marginBottom: 6,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.base,
+    color: colors.textoSuave,
+    marginBottom: espaciado.sm,
   },
   filaCantidad: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: espaciado.md,
+    gap: espaciado.sm,
+    backgroundColor: colors.superficie,
+    borderRadius: 20,
+    padding: espaciado.sm,
+    marginBottom: espaciado.sm,
   },
   input: {
-    width: 110,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borde,
+    flex: 1,
+    height: 50,
+    backgroundColor: colors.fondo,
     borderRadius: radios.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: espaciado.md,
+    fontFamily: fuentes.negrita,
     fontSize: 20,
-    fontWeight: '600',
-    color: colors.textoPrincipal,
+    color: colors.texto,
   },
   filaPronto: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radios.md,
-    padding: 12,
-    marginBottom: espaciado.md,
+    gap: 12,
+    backgroundColor: colors.superficie,
+    borderRadius: 20,
+    padding: espaciado.sm,
+    paddingRight: espaciado.md,
+    marginBottom: espaciado.lg,
+  },
+  circuloPronto: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.destacadoSuave,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tituloPronto: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.texto,
   },
   botonGuardar: {
-    backgroundColor: colors.terracota,
+    minHeight: 54,
     borderRadius: radios.pill,
-    paddingVertical: 14,
+    backgroundColor: colors.encabezado,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   textoGuardar: {
-    color: colors.textoSobreColor,
-    fontWeight: '700',
-    fontSize: 15,
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.sobreEncabezado,
   },
   botonEliminar: {
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 50,
+    marginTop: espaciado.xs,
   },
   textoEliminar: {
-    color: colors.vino,
-    fontWeight: '600',
-    fontSize: 14,
+    fontFamily: fuentes.semibold,
+    fontSize: tamanos.cuerpo,
+    color: colors.peligro,
   },
 });

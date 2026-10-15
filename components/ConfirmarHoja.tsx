@@ -1,15 +1,15 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { HojaInferior } from './HojaInferior';
-import { colors, espaciado, fuentes, radios, tamanos, tipografia } from '../theme/theme';
+import { IconoCompat, NombreIconoCompat } from './IconoCompat';
+import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
 
 interface Props {
   visible: boolean;
   titulo: string;
   mensaje: string;
   textoConfirmar: string;
-  icono?: keyof typeof Ionicons.glyphMap;
+  icono?: NombreIconoCompat;
   cargando?: boolean;
   onConfirmar: () => void;
   onCerrar: () => void;
@@ -20,7 +20,7 @@ export function ConfirmarHoja({
   titulo,
   mensaje,
   textoConfirmar,
-  icono = 'trash-outline',
+  icono = 'trash-bin-trash-linear',
   cargando = false,
   onConfirmar,
   onCerrar,
@@ -29,23 +29,29 @@ export function ConfirmarHoja({
     <HojaInferior visible={visible} onCerrar={onCerrar}>
       <View style={estilos.contenido}>
         <View style={estilos.halo}>
-          <Ionicons name={icono} size={30} color={colors.peligro} />
+          <View style={estilos.circulo}>
+            <IconoCompat nombre={icono} size={32} color={colors.peligro} />
+          </View>
         </View>
         <Text style={estilos.titulo}>{titulo}</Text>
         <Text style={estilos.mensaje}>{mensaje}</Text>
-        <View style={estilos.fila}>
-          <Pressable onPress={onCerrar} style={[estilos.boton, estilos.cancelar]}>
-            <Text style={estilos.textoCancelar}>Cancelar</Text>
-          </Pressable>
-          <Pressable onPress={onConfirmar} disabled={cargando} style={[estilos.boton, estilos.confirmar]}>
-            {cargando ? (
-              <ActivityIndicator color={colors.sobreAcento} />
-            ) : (
-              <Text style={estilos.textoConfirmar}>{textoConfirmar}</Text>
-            )}
-          </Pressable>
-        </View>
       </View>
+
+      <Pressable
+        onPress={onConfirmar}
+        disabled={cargando}
+        style={({ pressed }) => [estilos.boton, estilos.confirmar, (pressed || cargando) && { opacity: 0.85 }]}
+        accessibilityRole="button"
+      >
+        {cargando ? (
+          <ActivityIndicator color={colors.sobrePrimario} />
+        ) : (
+          <Text style={estilos.textoConfirmar}>{textoConfirmar}</Text>
+        )}
+      </Pressable>
+      <Pressable onPress={onCerrar} disabled={cargando} style={[estilos.boton, estilos.cancelar]} accessibilityRole="button">
+        <Text style={estilos.textoCancelar}>Cancelar</Text>
+      </Pressable>
     </HojaInferior>
   );
 }
@@ -53,56 +59,64 @@ export function ConfirmarHoja({
 const estilos = StyleSheet.create({
   contenido: {
     alignItems: 'center',
-    gap: espaciado.sm,
+    paddingHorizontal: espaciado.sm,
+    marginBottom: espaciado.lg,
   },
   halo: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: colors.peligroSuave,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: espaciado.xs,
   },
-  titulo: {
-    ...tipografia.titulo,
-    fontSize: 22,
-    color: colors.primario,
-    textAlign: 'center',
-  },
-  mensaje: {
-    ...tipografia.cuerpo,
-    color: colors.textoSuave,
-    textAlign: 'center',
-    marginBottom: espaciado.sm,
-  },
-  fila: {
-    flexDirection: 'row',
-    gap: espaciado.sm,
-    alignSelf: 'stretch',
-  },
-  boton: {
-    flex: 1,
+  circulo: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: colors.superficie,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    borderRadius: radios.pill,
   },
-  cancelar: {
-    borderWidth: 1.5,
-    borderColor: colors.primario,
+  titulo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 22,
+    lineHeight: 29,
+    color: colors.texto,
+    textAlign: 'center',
+    marginTop: espaciado.md,
+  },
+  mensaje: {
+    fontFamily: fuentes.regular,
+    fontSize: tamanos.cuerpo,
+    lineHeight: 23,
+    color: colors.textoSuave,
+    textAlign: 'center',
+    marginTop: espaciado.xs,
+  },
+  boton: {
+    minHeight: 54,
+    borderRadius: radios.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   confirmar: {
     backgroundColor: colors.peligro,
   },
-  textoCancelar: {
-    fontFamily: fuentes.negrita,
-    fontSize: tamanos.destacado,
-    color: colors.primario,
+  cancelar: {
+    marginTop: espaciado.sm,
+    backgroundColor: colors.superficie,
+    borderWidth: 1.5,
+    borderColor: colors.borde,
   },
   textoConfirmar: {
     fontFamily: fuentes.negrita,
     fontSize: tamanos.destacado,
-    color: colors.sobreAcento,
+    color: colors.sobrePrimario,
+  },
+  textoCancelar: {
+    fontFamily: fuentes.negrita,
+    fontSize: tamanos.destacado,
+    color: colors.texto,
   },
 });
