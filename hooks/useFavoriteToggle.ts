@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { log } from '../lib/log'; // STORAGE-2
 
 export function useFavoriteToggle(recetaId: number | null) {
   const [esFavorita, setEsFavorita] = useState(false);
@@ -18,7 +19,7 @@ export function useFavoriteToggle(recetaId: number | null) {
       .single();
 
     if (errorAlbum) {
-      setError(errorAlbum.message);
+      log('[favoritos] buscar álbum:', errorAlbum);
       setCargando(false);
       return;
     }
@@ -31,7 +32,8 @@ export function useFavoriteToggle(recetaId: number | null) {
       .maybeSingle(); // .maybeSingle() no truena si no hay ningún renglón
 
     if (errorRelacion) {
-      setError(errorRelacion.message);
+      log('[favoritos] buscar relación:', errorRelacion);
+      setError('No se pudo verificar tus favoritos.');
     } else {
       setEsFavorita(relacion != null);
     }
@@ -56,7 +58,8 @@ export function useFavoriteToggle(recetaId: number | null) {
       .single();
 
     if (errorAlbum) {
-      setError(errorAlbum.message);
+      log('[favoritos] buscar álbum:', errorAlbum);
+      setError('No se pudo actualizar tus favoritos.');
       return;
     }
     
@@ -71,7 +74,8 @@ export function useFavoriteToggle(recetaId: number | null) {
         .eq('receta_id', recetaId);
       if (errorBorrar) {
         setEsFavorita(valorAnterior);
-        setError(errorBorrar.message);
+        log('[favoritos] quitar:', errorBorrar);
+        setError('No se pudo quitar la receta de tus favoritos.');
       }
     } else {
       const { error: errorInsertar } = await supabase
@@ -80,7 +84,8 @@ export function useFavoriteToggle(recetaId: number | null) {
       // Código 23505 = ya estaba en el álbum: lo tratamos como éxito, no error
       if (errorInsertar && errorInsertar.code !== '23505') {
         setEsFavorita(valorAnterior);
-        setError(errorInsertar.message);
+        log('[favoritos] agregar:', errorInsertar);
+        setError('No se pudo agregar la receta a tus favoritos.');
       }
     }
   }, [recetaId, esFavorita]);

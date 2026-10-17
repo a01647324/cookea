@@ -10,7 +10,10 @@ import {
     AlbumConConteo,
   } from '../types/database';
   
-  
+import { log } from '../lib/log'; 
+import { validarTextoLibre } from '../lib/entradas';
+const MAX_NOMBRE_COLECCION = 40;
+
   export function useAlbums() {
     const [albumes, setAlbumes] =
       useState<AlbumConConteo[]>([]);
@@ -131,10 +134,8 @@ import {
   
       } catch (e: any) {
   
-        setError(
-          e.message ??
-          'No se pudieron cargar tus colecciones.'
-        );
+        log('[albumes] cargar:', e); 
+        setError('No se pudieron cargar tus colecciones.');
   
       } finally {
   
@@ -165,17 +166,18 @@ import {
       setError(null);
   
       try {
-  
-        const nombreLimpio =
-          nombre.trim();
-  
-        if (!nombreLimpio) {
-          setError(
-            'Escribe un nombre para la colección.'
-          );
-  
+        const validado = validarTextoLibre(nombre, 'El nombre', 1, MAX_NOMBRE_COLECCION);
+ 
+        if (!validado.ok) {
+          setError('Escribe un nombre para la colección.');
+ 
           return false;
         }
+  
+        const nombreLimpio =
+          validado.valor;
+  
+    
   
   
         const {
@@ -226,10 +228,8 @@ import {
   
       } catch (e: any) {
   
-        setError(
-          e.message ??
-          'No se pudo crear la colección.'
-        );
+        log('[albumes] crear:', e);
+        setError('No se pudo crear la colección.');
   
         return null;
       }
@@ -264,10 +264,8 @@ import {
       
           return true;
         } catch (e: any) {
-          setError(
-            e.message ??
-              'No se pudo agregar la receta a la colección.'
-          );
+          log('[albumes] agregar receta:', e);
+          setError('No se pudo agregar la receta a la colección.');
       
           return false;
         }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { RecetaDetalle } from '../types/database';
+import { log } from '../lib/log'; 
 
 
 export function useRecipeDetail(recetaId: number | null) {
@@ -29,7 +30,7 @@ export function useRecipeDetail(recetaId: number | null) {
       if (errorConsulta.code === 'PGRST116') {
         setError('Receta no encontrada.');
       } else {
-        setError(errorConsulta.message);
+       log('[receta] detalle:', errorConsulta); setError('No pudimos cargar la receta.');
       }
       setReceta(null);
     } else {

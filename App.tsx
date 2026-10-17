@@ -28,6 +28,8 @@ import useSession from './auth/useSession';
 import RecuperarClaveScreen from './auth/RecuperarClaveScreen';
 import NuevaContrasenaScreen from './auth/NuevaContrasenaScreen';
 
+
+import { log } from './lib/log';
 // Define qué parámetros recibe cada pantalla al navegar hacia ella.
 // BARRA: las pantallas con sesión están en los tipos InicioParamList y
 // CuentaParamList de navegacion/BarraInferior.tsx
@@ -62,7 +64,7 @@ export default function App() {
     async function probarConexion() {
       const { data, error } = await supabase.from('alergenos').select('nombre');
 
-      if (error) setEstado('Error: ' + error.message);
+      if (error) log('[sesión]', error.message); 
       else setEstado(`Conectado. Alérgenos en la base: ${data.length}`);
     }
     probarConexion();

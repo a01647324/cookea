@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { obtenerIdsRecetasConAlergia } from '../lib/alergias';
 import { RecetaResumen } from '../types/database';
+import { limpiarBusqueda } from '../lib/entradas';
 
 export interface Categoria {
   id: number;
@@ -16,9 +17,6 @@ export interface RecetaRecetario extends RecetaResumen {
 
 const ETIQUETAS_OCULTAS = ['Comunidad BAMX'];
 
-function limpiarBusqueda(texto: string) {
-  return texto.trim().replace(/[%_,()]/g, ' ');
-}
 
 export function useRecetario(busqueda: string) {
   const [recetas, setRecetas] = useState<RecetaRecetario[]>([]);

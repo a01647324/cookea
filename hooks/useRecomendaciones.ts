@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { obtenerIdsRecetasConAlergia } from '../lib/alergias';
 import { textoError } from '../lib/errores';
+import { log } from '../lib/log';
 import { recomendar } from '../lib/recomendador/recomendar';
 import {
   GrupoAlimenticio,
@@ -73,7 +74,7 @@ export async function cargarRecetas(): Promise<RecetaParaRecomendar[]> {
 
   let { data, error } = await consulta(COLUMNAS_SALUD);
   if (error) {
-    if (__DEV__) console.log('[recomendador] sin columnas de salud, reintento básico:', error.code, error.message);
+    log('[recomendador] sin columnas de salud, reintento básico:', error.code);
     ({ data, error } = await consulta(COLUMNAS_BASE));
   }
   if (error) throw error;

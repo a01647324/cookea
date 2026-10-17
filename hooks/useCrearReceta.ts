@@ -5,7 +5,10 @@ import { supabase } from '../lib/supabase';
 import { IngredienteCatalogo } from '../types/alacena';
 import { UnidadUI, aBase, convertirUI, formatearUI, opcionesUnidad } from '../lib/unidades';
 
+import { esEnlaceVideoSeguro, limpiarTexto, validarCantidad, validarTextoLibre } from '../lib/entradas'
+
 export interface IngredienteForm {
+
   ingrediente: IngredienteCatalogo;
   valor: number;
   unidad: UnidadUI;
@@ -213,8 +216,23 @@ export function useCrearReceta(recetaId?: number) {
   }, []);
 
   const publicar = useCallback(
+    
     async (acepto: boolean): Promise<ResultadoPublicar> => {
       if (!uid.current) return { ok: false, mensaje: 'Necesitas iniciar sesión.' };
+
+      const nombre = validarTextoLibre(form.nombre, 'El nombre', 3, 100);
+      if (!nombre.ok) return { ok: false, mensaje: nombre.error };
+      const descripcion = validarTextoLibre(form.descripcion, 'La descripción', 0, 1000, { multilinea: true });
+      if (!descripcion.ok) return { ok: false, mensaje: descripcion.error };
+      const video = form.video.trim();
+      if (video && !esEnlaceVideoSeguro(video)) {
+        return { ok: false, mensaje: 'El enlace de video debe ser de YouTube (https).' };
+      }
+      for (const i of form.ingredientes) {
+        const c = validarCantidad(i.valor);
+        if (!c.ok) return { ok: false, mensaje: `${i.ingrediente.nombre}: ${c.error}` };
+      }
+      
 
       setPublicando(true);
       let fotoSubida: string | null = null;
@@ -228,12 +246,12 @@ export function useCrearReceta(recetaId?: number) {
 
         const { data, error: errorRpc } = await supabase.rpc('publicar_receta', {
           p_receta_id: recetaId ?? null,
-          p_nombre: form.nombre,
-          p_descripcion: form.descripcion,
+          p_nombre: nombre.valor,
+          p_descripcion: descripcion.valor,
           p_tiempo: form.tiempo,
           p_porciones: form.porciones,
           p_foto_url: fotoUrl,
-          p_video_url: form.video,
+          p_video_url: video,
           p_ingredientes: form.ingredientes.map((i) => ({
             ingrediente_id: i.ingrediente.id,
             cantidad: aBase(i.valor, i.unidad),
@@ -241,8 +259,8 @@ export function useCrearReceta(recetaId?: number) {
             opcional: i.opcional,
           })),
           p_pasos: form.pasos
-            .filter((p) => p.texto.trim())
-            .map((p) => ({ texto: p.texto.trim(), temporizador_seg: p.minutos ? p.minutos * 60 : null })),
+            .filter((p) =>limpiarTexto(p.texto, 1000, { multilinea: true }))
+            .map((p) => ({ texto: limpiarTexto(p.texto, 1000, { multilinea: true }), temporizador_seg: p.minutos ? p.minutos * 60 : null })),
           p_etiquetas: form.etiquetas,
           p_electrodomesticos: form.electrodomesticos,
           p_acepto: acepto,

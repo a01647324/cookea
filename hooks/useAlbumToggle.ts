@@ -3,7 +3,7 @@ import {
     useEffect,
     useState,
   } from 'react';
-  
+  import { log } from '../lib/log';
   import { supabase } from '../lib/supabase';
   
   type TipoAlbumToggle =
@@ -72,10 +72,9 @@ import {
             relacion != null
           );
         } catch (e: any) {
-          setError(
-            e.message ??
-              'No se pudo verificar el álbum.'
-          );
+         
+          log('[album] verificar el álbum:', e);
+setError('No se pudo verificar el álbum.');
         } finally {
           setCargando(false);
         }
@@ -110,8 +109,9 @@ import {
           .maybeSingle();
   
         if (errorAlbum) {
+          log('[album] buscar álbum:', errorAlbum);
           setError(
-            errorAlbum.message
+            'No se pudo actualizar el álbum.'
           );
           return;
         }
@@ -151,8 +151,9 @@ import {
               valorAnterior
             );
   
+            log('[album] quitar receta:', errorBorrar);
             setError(
-              errorBorrar.message
+              'No se pudo quitar la receta del álbum.'
             );
           }
         } else {
@@ -174,8 +175,9 @@ import {
               valorAnterior
             );
   
+            log('[album] agregar receta:', errorInsertar); // STORAGE-2
             setError(
-              errorInsertar.message
+              'No se pudo agregar la receta al álbum.'
             );
           }
         }

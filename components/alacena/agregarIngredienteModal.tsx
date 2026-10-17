@@ -29,6 +29,7 @@ import {
 } from '../../lib/unidades';
 import { etiquetaPasillo, normalizar, ordenPasillo } from '../../constants/categorias';
 import { mostrarAviso } from '../../lib/avisos';
+import { LIMITES } from '../../lib/entradas';
 import { ChipsFiltro } from './chipsFiltro';
 import { SelectorUnidad } from './selectorUnidad';
 import { Stepper } from './stepper';

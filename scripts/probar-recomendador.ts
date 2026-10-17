@@ -22,6 +22,7 @@ import {
   RecetaParaRecomendar,
   UnidadBase,
 } from '../lib/recomendador/tipos';
+import { log } from '../lib/log';
 
 // ---------- Mini herramientas de prueba ----------
 let pasaron = 0;
@@ -30,10 +31,10 @@ function prueba(nombre: string, f: () => void) {
   try {
     f();
     pasaron += 1;
-    console.log(`  ok  ${nombre}`);
+    log(`  ok  ${nombre}`);
   } catch (e: any) {
     fallos.push(`${nombre}: ${e.message}`);
-    console.log(`  XX  ${nombre}\n        ${e.message}`);
+    log(`  XX  ${nombre}\n        ${e.message}`);
   }
 }
 function igual<T>(real: T, esperado: T, msg = '') {
@@ -103,7 +104,8 @@ const huevoRanchero = receta(4, 'Huevos a la mexicana', [
   ing('zanahoria', 1, { opcional: true }),
 ]);
 
-console.log('\nCOBERTURA');
+
+log('\nCOBERTURA');
 prueba('completo / insuficiente / faltante se clasifican bien', () => {
   const s = stockPorIngrediente(stock(['arroz', 500], ['frijol', 100], ['jitomate', 5]));
   const c = calcularCobertura(arrozFrijol, s);
@@ -138,7 +140,7 @@ prueba('receta solo con básicos queda "completa"', () => {
   igual(c.puedeCocinarYa, true);
 });
 
-console.log('\nALERGIAS (filtro duro)');
+log('\nALERGIAS (filtro duro)');
 prueba('una receta excluida NUNCA aparece, aunque sea perfecta', () => {
   const r = recomendar(
     [arrozFrijol, sopaLentejas],
@@ -152,7 +154,7 @@ prueba('si se excluyen todas, no regresa nada', () => {
   igual(r.items.length, 0);
 });
 
-console.log('\nALACENA VACÍA (usuario nuevo)');
+log('\nALACENA VACÍA (usuario nuevo)');
 prueba('regresa recetas, marca alacenaVacia y no dice "Te falta"', () => {
   const r = recomendar([arrozFrijol, hotdogs], ctx([]));
   igual(r.alacenaVacia, true);
@@ -168,7 +170,7 @@ prueba('alacena con cantidad 0 cuenta como vacía', () => {
   igual(recomendar([arrozFrijol], ctx(stock(['arroz', 0]))).alacenaVacia, true);
 });
 
-console.log('\nORDEN POR ALACENA');
+log('\nORDEN POR ALACENA');
 prueba('la que puedes cocinar ya queda arriba de la que no', () => {
   const al = stock(['lenteja', 300], ['zanahoria', 3], ['cebolla', 2]);
   const r = recomendar([arrozFrijol, sopaLentejas, hotdogs], ctx(al));
@@ -181,7 +183,7 @@ prueba('el motivo nombra lo que falta', () => {
   igual(r.items[0].motivos[0], 'Te falta: cebolla');
 });
 
-console.log('\nUSAR PRONTO');
+log('\nUSAR PRONTO');
 prueba('gastar un ingrediente "Usar pronto" sube la receta', () => {
   // Misma alacena; la única diferencia es que la zanahoria está marcada "usar pronto".
   const base = stock(['lenteja', 300], ['zanahoria', 3], ['cebolla', 2], ['huevo', 6], ['jitomate', 4]);
@@ -200,7 +202,7 @@ prueba('un ingrediente usar_pronto de cantidad 0 se ignora', () => {
   igual(r.items[0].componentes.usarPronto, undefined);
 });
 
-console.log('\nAFINIDAD');
+log('\nAFINIDAD');
 prueba('usuario sin historial: afinidad no se calcula', () => {
   igual(calcularAfinidad(sopaLentejas, construirPerfil([arrozFrijol, sopaLentejas], historialVacio())), null);
 });
@@ -236,7 +238,7 @@ prueba('el resultado siempre está entre 0 y 1', () => {
   }
 });
 
-console.log('\nSALUD — Fase A (Plato del Bien Comer)');
+log('\nSALUD — Fase A (Plato del Bien Comer)');
 prueba('arroz + frijol + verduras = balanceada', () => {
   const s = saludPlato(arrozFrijol)!;
   igual(s.etiqueta, 'balanceada');
@@ -261,7 +263,7 @@ prueba('receta sin grupos asignados: salud = null, no truena', () => {
   igual(r.items[0].componentes.salud, undefined);
 });
 
-console.log('\nSALUD — Fase B (NOM-051)');
+log('\nSALUD — Fase B (NOM-051)');
 const NUT_SALCHICHA: Nutricion = { kcal_100: 250, azucares_anadidos_100: 3, grasa_sat_100: 9, sodio_mg_100: 1000, gramos_por_pieza: 45 };
 const NUT_FRIJOL: Nutricion = { kcal_100: 340, azucares_anadidos_100: 0, grasa_sat_100: 0.2, sodio_mg_100: 10, gramos_por_pieza: null };
 prueba('cuenta octágonos: sodio y grasa saturada altos', () => {
@@ -292,7 +294,7 @@ prueba('ingrediente en piezas sin gramos_por_pieza no se inventa', () => {
   igual(saludNutricional(r), null);
 });
 
-console.log('\nNOVEDAD, LÍMITE Y ORDEN');
+log('\nNOVEDAD, LÍMITE Y ORDEN');
 prueba('una receta ya preparada puntúa menos que una nueva igual', () => {
   const copia = { ...arrozFrijol, id: 99, nombre: 'Copia' };
   const h = historialVacio();
@@ -319,7 +321,7 @@ prueba('empates se ordenan de forma estable (por tiempo y luego id)', () => {
   igual(recomendar([a, b], ctx([])).items[0].receta.id, 51);
 });
 
-console.log('\nSECCIONES DE LA PANTALLA');
+log('\nSECCIONES DE LA PANTALLA');
 prueba('agruparPorFaltantes separa ya / falta 1 / falta 2-3 / más', () => {
   const al = stock(['lenteja', 300], ['zanahoria', 3], ['cebolla', 2], ['arroz', 300], ['frijol', 200]);
   const r = recomendar([sopaLentejas, arrozFrijol, hotdogs], ctx(al));
@@ -333,8 +335,8 @@ prueba('agruparPorFaltantes separa ya / falta 1 / falta 2-3 / más', () => {
   cierto(secc.every((s) => s.data.length > 0), 'secciones vacías');
 });
 
-console.log(`\n${fallos.length === 0 ? '✔' : '✘'} ${pasaron} pruebas pasaron${fallos.length ? `, ${fallos.length} fallaron` : ''}`);
+log(`\n${fallos.length === 0 ? '✔' : '✘'} ${pasaron} pruebas pasaron${fallos.length ? `, ${fallos.length} fallaron` : ''}`);
 if (fallos.length) {
-  fallos.forEach((f) => console.log(' - ' + f));
+  fallos.forEach((f) => log(' - ' + f));
   process.exit(1);
 }

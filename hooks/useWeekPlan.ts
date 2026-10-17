@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { MomentoComida, PlanSemanalItem } from '../types/database';
+import { log } from '../lib/log'; 
 
 export interface DiaPlan {
   fecha: string; // YYYY-MM-DD
@@ -75,7 +76,7 @@ export function useWeekPlan() {
       .in('fecha', fechas);
 
     if (errorPlan) {
-      setError(errorPlan.message);
+      log('[semana] plan:', errorPlan); setError('No pudimos cargar tu semana.');
       setCargando(false);
       return;
     }

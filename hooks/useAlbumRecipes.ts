@@ -3,7 +3,7 @@ import {
     useEffect,
     useState,
   } from 'react';
-  
+  import { log } from '../lib/log';
   import { supabase } from '../lib/supabase';
   
   import {
@@ -77,10 +77,9 @@ import {
   
       } catch (e: any) {
   
-        setError(
-          e.message ??
-          'No se pudieron cargar las recetas.'
-        );
+        log('[album] cargar recetas:', e);
+setError('No se pudieron cargar las recetas.');
+        
   
       } finally {
   
@@ -136,10 +135,9 @@ import {
   
       } catch (e: any) {
   
-        setError(
-          e.message ??
-          'No se pudo agregar la receta.'
-        );
+  
+        log('[album] agregar receta:', e);
+setError('No se pudo agregar la receta');
   
         return false;
       }
@@ -180,10 +178,8 @@ import {
   
       } catch (e: any) {
   
-        setError(
-          e.message ??
-          'No se pudo quitar la receta.'
-        );
+        log('[album] quitar receta:', e);
+setError('No se pudo quitar la receta.');
   
         return false;
       }

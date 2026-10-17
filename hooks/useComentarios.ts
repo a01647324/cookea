@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Comentario } from '../types/database';
-
-export const MAX_COMENTARIO = 500;
+import { LIMITES, validarComentario } from '../lib/entradas';
+export const MAX_COMENTARIO = LIMITES.comentario;
 
 export function useComentarios(recetaId: number) {
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
@@ -56,8 +56,11 @@ export function useComentarios(recetaId: number) {
   }, [cargar]);
 
   const publicar = useCallback(
+    
     async (texto: string) => {
-      const limpio = texto.trim();
+      const r = validarComentario(texto);
+      if (!r.ok) return false;
+      const limpio = r.valor;
       if (!limpio || limpio.length > MAX_COMENTARIO) return false;
 
       setEnviando(true);

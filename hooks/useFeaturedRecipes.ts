@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { obtenerIdsRecetasConAlergia } from '../lib/alergias';
 import { RecetaResumen } from '../types/database';
+import { log } from '../lib/log'; 
 
 export interface RecetaDestacada extends RecetaResumen {
   etiqueta: string | null;
@@ -51,7 +52,9 @@ export function useFeaturedRecipes(limite: number = 6) {
 
       setRecetas(lista);
     } catch (e: any) {
-      setError(e.message ?? 'No se pudieron cargar las recomendaciones');
+      
+      log('[destacadas] cargar:', e);
+              setError('No se pudieron cargar las recomendaciones');
     } finally {
       setCargando(false);
     }

@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { log } from '../lib/log'; 
+import { limpiarTexto } from '../lib/entradas';
 
 export type MotivoReporte =
   | 'contenido_inapropiado'
@@ -17,7 +19,7 @@ export function useReporte(recetaId: number) {
 
   const reportar = useCallback(
     async (motivo: MotivoReporte, detalle: string): Promise<ResultadoReporte> => {
-      const texto = detalle.trim().slice(0, MAX_DETALLE_REPORTE);
+      const texto = limpiarTexto(detalle, MAX_DETALLE_REPORTE, { multilinea: true });;
 
       setEnviando(true);
       const { error } = await supabase.from('reportes').insert({
@@ -29,6 +31,7 @@ export function useReporte(recetaId: number) {
 
       if (!error) return 'ok';
       if (error.code === '23505') return 'repetido';
+        log('[reporte] error:', error);
       return 'error';
     },
     [recetaId]

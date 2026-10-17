@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Icono from './Icono';
 import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
+import { LIMITES, limpiarBusqueda } from '../lib/entradas';
 
 interface Props {
   valorInicial?: string;
@@ -24,7 +25,7 @@ export function SearchBar({
   useEffect(() => {
     if (!buscarAlEscribir) return;
     if (referenciaTimeout.current) clearTimeout(referenciaTimeout.current);
-    referenciaTimeout.current = setTimeout(() => onBuscar(texto), 400);
+    referenciaTimeout.current = setTimeout(() => onBuscar(limpiarBusqueda(texto)), 400);
     return () => {
       if (referenciaTimeout.current) clearTimeout(referenciaTimeout.current);
     };
@@ -41,7 +42,8 @@ export function SearchBar({
         placeholderTextColor={colors.textoSuave}
         style={estilos.input}
         returnKeyType="search"
-        onSubmitEditing={() => onBuscar(texto)}
+        onSubmitEditing={() => onBuscar(limpiarBusqueda(texto))}
+        maxLength={LIMITES.busqueda}
         autoComplete="off"
         importantForAutofill="no"
       />

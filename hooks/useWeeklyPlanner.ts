@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-
+import { log } from '../lib/log';
 import { supabase } from '../lib/supabase';
 
 import {
@@ -146,10 +146,9 @@ export function useWeeklyPlanner(
 
     } catch (e: any) {
 
-      setError(
-        e.message ??
-        'No se pudo cargar tu plan semanal.'
-      );
+    
+       log('[planner] cargar:', e);
+              setError('No se pudo cargar tu plan semanal.');
 
     } finally {
 
@@ -252,24 +251,17 @@ export function useWeeklyPlanner(
   
     } catch (e: any) {
   
-      console.log(
-        '[useWeeklyPlanner] Error al guardar receta:',
-        e.code,
-        e.message
-      );
-  
+      log('[planner] guardar:', e);
+
       // Mensaje más amigable si se produce el conflicto de duplicado.
       if (e.code === '23505') {
         setError(
           'Ya tienes una receta planeada para este momento. Intenta cambiarla nuevamente.'
         );
       } else {
-        setError(
-          e.message ??
-          'No se pudo guardar la receta.'
-        );
+        setError('No se pudo guardar la receta.');
       }
-  
+
       return false;
     }
   }
@@ -301,10 +293,8 @@ export function useWeeklyPlanner(
 
     } catch (e: any) {
 
-      setError(
-        e.message ??
-        'No se pudo eliminar del plan.'
-      );
+             log('[planner] eliminar:', e);
+              setError('No se pudo eliminar del plan.');
 
       return false;
     }

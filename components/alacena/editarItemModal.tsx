@@ -5,6 +5,7 @@ import Icono from '../Icono';
 import { AlacenaItem } from '../../types/alacena';
 import { UnidadUI, aBase, convertirUI, desdeBase, opcionesUnidad } from '../../lib/unidades';
 import { mostrarAviso } from '../../lib/avisos';
+import { validarCantidad } from '../../lib/entradas';
 import { etiquetaPasillo, haceCuanto } from '../../constants/categorias';
 import { SelectorUnidad } from './selectorUnidad';
 import { IngredienteImagen } from './ingredienteImagen';
@@ -45,14 +46,13 @@ export function EditarItemModal({ item, onCerrar, onGuardar, onEliminar }: Props
   }
 
   async function guardar() {
-    if (!actual) return;
-    const valor = parseFloat(texto.replace(',', '.'));
-    if (!Number.isFinite(valor) || valor <= 0) {
-      mostrarAviso('Cantidad no válida', 'Escribe un número mayor a 0.');
+    const r = validarCantidad(texto);
+    if (!r.ok) {
+      mostrarAviso('Cantidad no válida', r.error);
       return;
     }
     setGuardando(true);
-    await onGuardar(actual, aBase(valor, unidad), usarPronto);
+    await onGuardar(item!, aBase(r.valor, unidad), usarPronto);
     setGuardando(false);
   }
 
@@ -84,6 +84,7 @@ export function EditarItemModal({ item, onCerrar, onGuardar, onEliminar }: Props
               value={texto}
               onChangeText={setTexto}
               keyboardType="decimal-pad"
+              maxLength={10}
               style={estilos.input}
               selectTextOnFocus
               autoComplete="off"

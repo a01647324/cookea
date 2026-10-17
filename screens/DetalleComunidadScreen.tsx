@@ -28,6 +28,7 @@ import { colors, espaciado, fuentes, radios, sombra, tipografia, tamanos } from 
 import { RecetaIngrediente } from '../types/database';
 import { ModalYaLoPrepare } from '../components/receta/modalYaLoPrepare';
 import { HojaAgregarSemana } from '../components/receta/HojaAgregarSemana';
+import { esEnlaceVideoSeguro } from '../lib/entradas';
 
 interface Props {
   recetaId: number;
@@ -390,7 +391,7 @@ export default function DetalleComunidadScreen({
             </Pressable>
           )}
 
-          {!!receta.video_url && (
+          {!!receta.video_url && esEnlaceVideoSeguro(receta.video_url) &&(
             <Pressable onPress={() => Linking.openURL(receta.video_url!)} style={estilos.botonVideo}>
               <Icono nombre="play-circle-linear" size={18} color={colors.primario} />
               <Text style={estilos.textoBotonVideo}>Ver video</Text>

@@ -1,8 +1,7 @@
-//errores alacena
+import { log } from './log';
+
 export function textoError(e: { code?: string; message?: string } | null | undefined): string {
-  if (__DEV__ && e) {
-    console.log('[alacena] error de Supabase:', e.code, e.message);
-  }
+  if (e) log('[error de Supabase]', e.code, e.message); 
 
   switch (e?.code) {
     case '23505':
@@ -13,6 +12,19 @@ export function textoError(e: { code?: string; message?: string } | null | undef
       return 'No tienes permiso para hacer eso. Cierra sesión, vuelve a entrar e inténtalo otra vez.';
   }
 
+  const m = (e?.message ?? '').toLowerCase();
+  if (m.includes('fetch') || m.includes('network')) {
+    return 'No hay conexión. Revisa tu internet e inténtalo de nuevo.';
+  }
+  return 'Algo salió mal. Inténtalo de nuevo en un momento.';
+}
+
+export function textoErrorGeneral(e: { code?: string; message?: string } | null | undefined): string {
+  if (e) log('[error de Supabase]', e.code, e.message);
+
+  if (e?.code === '42501') {
+    return 'No tienes permiso para hacer eso. Cierra sesión, vuelve a entrar e inténtalo otra vez.';
+  }
   const m = (e?.message ?? '').toLowerCase();
   if (m.includes('fetch') || m.includes('network')) {
     return 'No hay conexión. Revisa tu internet e inténtalo de nuevo.';

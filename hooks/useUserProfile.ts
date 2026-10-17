@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Perfil } from '../types/database';
+import { log } from '../lib/log'; 
 
 /**
  * useUserProfile
@@ -33,7 +34,7 @@ export function useUserProfile() {
       .single();
 
     if (errorPerfil) {
-      setError(errorPerfil.message);
+      log('[perfil] cargar:', errorPerfil); setError('No pudimos cargar tu perfil.');
     } else {
       setPerfil(data as Perfil);
     }
