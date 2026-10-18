@@ -2,25 +2,34 @@ import { AvisoHost } from './components/AvisoHost';
 import { colors } from './theme/theme';
 import ConfirmarCorreoScreen from './auth/ConfirmarCorreoScreen';
 
+import { useAppLock } from './hooks/useAppLock';
+import BloqueoScreen from './auth/BloqueoScreen';
+
 import { useFonts } from 'expo-font';
 import { Lora_700Bold } from '@expo-google-fonts/lora';
 import { Quicksand_500Medium, Quicksand_600SemiBold, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 
-import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { NavigatorScreenParams } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  NavigatorScreenParams,
+} from '@react-navigation/native';
+
 // BARRA: la Home, Recetario, RecetaDetalle, Alergias y TuSemana ahora viven
 // dentro de la barra inferior (pestaña "Inicio"), en navegacion/BarraInferior.tsx
 import BarraInferior, { BarraParamList } from './navegacion/BarraInferior';
 
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { supabase } from './lib/supabase';
 
 // AUTH: pantallas de Login/SignUp y el hook que dice si hay sesión
-import { ActivityIndicator } from 'react-native';
 import LoginScreen from './auth/LoginScreen';
 import SignUpScreen from './auth/SignUpScreen';
 import useSession from './auth/useSession';
@@ -89,11 +98,38 @@ export default function App() {
     olvidarRecuperacionGuardada,
     cancelarRecuperacion,
   } = useSession();
+
+  const {
+    bloqueada,
+    autenticando,
+    autenticar,
+  } = useAppLock(
+    session !== null &&
+    !recuperando
+  );
+
   if (cargando || !fuentesListas) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.encabezado} />
       </View>
+    );
+  }
+
+  if (
+    session &&
+    !recuperando &&
+    bloqueada
+  ) {
+    return (
+      <SafeAreaProvider>
+        <BloqueoScreen
+          autenticando={autenticando}
+          onDesbloquear={() =>
+            void autenticar()
+          }
+        />
+      </SafeAreaProvider>
     );
   }
 
