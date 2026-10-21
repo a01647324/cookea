@@ -3,32 +3,51 @@ import { FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useRecomendaciones } from '../hooks/useRecomendaciones';
-import { agruparPorFaltantes } from '../lib/recomendador/recomendar';
+import { FiltroSalud, agruparPorFaltantes, contarPorSalud, filtrarPorSalud } from '../lib/recomendador/recomendar';
+import { NOMBRE_FILTRO_SALUD } from '../constants/recomendador'; // SALUD
 import { TarjetaRecomendada } from '../components/recomendador/tarjetaRecomendada';
 import { CarruselRecetas } from '../components/recomendador/CarruselRecetas';
+import { ChipsFiltro } from '../components/alacena/chipsFiltro'; // SALUD: se reutiliza el filtro de chips que ya existe
 import { VistaError } from '../components/StateViews';
 import { EstadoVacio } from '../components/EstadoVacio';
 import { Esqueleto } from '../components/Esqueleto';
 import Icono from '../components/Icono';
 import { colors, espaciado, fuentes, radios, tamanos } from '../theme/theme';
-
+ 
 export function QueCocinoHoyScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { items, alacenaVacia, cargando, error, recargar } = useRecomendaciones(80);
   const [refrescando, setRefrescando] = useState(false);
-
-  const secciones = useMemo(() => agruparPorFaltantes(items), [items]);
+ 
+  // SALUD: filtro por categoría. Se queda en "todas" si la categoría elegida ya no tiene recetas (p. ej. al refrescar).
+  const [filtro, setFiltro] = useState<FiltroSalud>('todas');
+  const conteos = useMemo(() => contarPorSalud(items), [items]);
+  const filtroActivo: FiltroSalud = filtro !== 'todas' && conteos[filtro] === 0 ? 'todas' : filtro;
+ 
+  const opcionesFiltro = useMemo(() => {
+    const categorias = (['balanceada', 'aceptable', 'ocasional'] as const)
+      .filter((c) => conteos[c] > 0)
+      .map((c) => ({ clave: c, etiqueta: `${NOMBRE_FILTRO_SALUD[c]} · ${conteos[c]}` }));
+    // Con una sola categoría el filtro no sirve de nada: no se muestra
+    return categorias.length >= 2 ? [{ clave: 'todas', etiqueta: `Todas · ${conteos.todas}` }, ...categorias] : [];
+  }, [conteos]);
+ 
+  // Primero lo que puedes cocinar (secciones por ingredientes); dentro de cada una, de más a menos saludable
+  const secciones = useMemo(
+    () => agruparPorFaltantes(filtrarPorSalud(items, filtroActivo), { ordenarPorSalud: true }),
+    [items, filtroActivo]
+  );
   const [principal, ...resto] = secciones;
-
+ 
   async function alJalar() {
     setRefrescando(true);
     await recargar();
     setRefrescando(false);
   }
-
+ 
   const abrir = (recetaId: number) => navigation.navigate('RecetaDetalle', { recetaId });
-
+ 
   function contenido() {
     if (cargando) {
       return (
@@ -58,7 +77,7 @@ export function QueCocinoHoyScreen() {
         />
       );
     }
-
+ 
     return (
       <>
         <View style={[estilos.encabezadoSeccion, estilos.bloque]}>
@@ -69,8 +88,8 @@ export function QueCocinoHoyScreen() {
             </Text>
           </View>
         </View>
-        <CarruselRecetas items={principal.data} onAbrir={abrir} />
-
+        <CarruselRecetas key={filtroActivo} items={principal.data} onAbrir={abrir} mostrarSalud />
+ 
         {resto.map((seccion) => (
           <View key={seccion.clave}>
             <View style={[estilos.encabezadoSeccion, estilos.bloque]}>
@@ -85,22 +104,37 @@ export function QueCocinoHoyScreen() {
               contentContainerStyle={estilos.fila}
               ItemSeparatorComponent={() => <View style={{ width: espaciado.sm }} />}
               renderItem={({ item }) => (
-                <TarjetaRecomendada variante="mini" recomendacion={item} onPress={() => abrir(item.receta.id)} />
+                <TarjetaRecomendada
+                  variante="mini"
+                  recomendacion={item}
+                  mostrarSalud
+                  onPress={() => abrir(item.receta.id)}
+                />
               )}
             />
           </View>
         ))}
-
+ 
         <View style={[estilos.nota, estilos.bloque]}>
           <Icono nombre="health-linear" size={20} color={colors.serenoIntenso} />
           <Text style={estilos.textoNota}>
             Ya quitamos las recetas con tus alergias. Aun así, revisa los ingredientes antes de cocinar.
           </Text>
         </View>
+ 
+        {items.some((r) => r.salud) && (
+          <View style={[estilos.nota, estilos.bloque]}>
+            <Icono nombre="leaf-linear" size={20} color={colors.serenoIntenso} />
+            <Text style={estilos.textoNota}>
+              La categoría de salud se basa en el Plato del Bien Comer: verduras y frutas, cereales, leguminosas y
+              alimentos de origen animal. Es una guía, no un diagnóstico: «de vez en cuando» no significa «prohibido».
+            </Text>
+          </View>
+        )}
       </>
     );
   }
-
+ 
   return (
     <View style={estilos.pantalla}>
       <ScrollView
@@ -119,7 +153,13 @@ export function QueCocinoHoyScreen() {
             {alacenaVacia ? 'Ideas para empezar a cocinar' : 'Con lo que ya tienes en casa'}
           </Text>
         </View>
-
+ 
+        {!cargando && !error && opcionesFiltro.length > 0 && (
+          <View style={estilos.filtroSalud}>
+            <ChipsFiltro opciones={opcionesFiltro} seleccionada={filtroActivo} onSeleccionar={(c) => setFiltro(c as FiltroSalud)} />
+          </View>
+        )}
+ 
         {!cargando && !error && alacenaVacia && (
           <Pressable
             onPress={() => navigation.navigate('Alacena')}
@@ -141,7 +181,7 @@ export function QueCocinoHoyScreen() {
             </View>
           </Pressable>
         )}
-
+ 
         {contenido()}
       </ScrollView>
     </View>
@@ -155,6 +195,9 @@ const estilos = StyleSheet.create({
   },
   bloque: {
     marginHorizontal: espaciado.md,
+  },
+  filtroSalud: {
+    marginTop: espaciado.md,
   },
   botonAtras: {
     width: 44,

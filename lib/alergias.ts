@@ -74,3 +74,29 @@ export async function obtenerIdsRecetasConAlergia(modoHogar: boolean = true): Pr
 
   return [...new Set((recetasConIngrediente ?? []).map((fila) => fila.receta_id as number))];
 }
+
+export async function obtenerNombresIngredientesConAlergia(modoHogar: boolean = true): Promise<Set<string>> {
+  const { data: propias, error: errorPropias } = await supabase.from('usuario_alergias').select('alergeno_id');
+  if (errorPropias) throw errorPropias;
+  let alergenoIds = (propias ?? []).map((fila) => fila.alergeno_id as number);
+ 
+  if (modoHogar) {
+    const { data: hogar, error: errorHogar } = await supabase.from('hogar_alergias').select('alergeno_id');
+    if (errorHogar) throw errorHogar;
+    alergenoIds = [...alergenoIds, ...(hogar ?? []).map((fila) => fila.alergeno_id as number)];
+  }
+ 
+  const idsUnicos = [...new Set(alergenoIds)];
+  if (idsUnicos.length === 0) return new Set(); // sin alergias: no hay nada que excluir
+ 
+  const { data, error } = await supabase
+    .from('ingrediente_alergenos')
+    .select('ingredientes ( nombre )')
+    .in('alergeno_id', idsUnicos);
+  if (error) throw error;
+ 
+  const nombres = (data ?? [])
+    .map((fila: any) => (Array.isArray(fila.ingredientes) ? fila.ingredientes[0] : fila.ingredientes)?.nombre)
+    .filter((n): n is string => typeof n === 'string' && n.length > 0);
+  return new Set(nombres);
+}

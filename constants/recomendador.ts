@@ -52,3 +52,57 @@ export const ETIQUETA_GRUPO: Record<string, string> = {
   ultraprocesado: 'Ultraprocesados',
   neutro: 'Condimentos y agua',
 };
+
+// ---------- Presentación de la salud (¿Qué cocino hoy? y detalle de receta) ----------
+// (Guías alimentarias saludables y sostenibles para la población mexicana, 2023).
+export const NOMBRE_ETIQUETA_SALUD = {
+  balanceada: 'Balanceada',
+  aceptable: 'Aceptable',
+  ocasional: 'Para de vez en cuando',
+} as const;
+
+export const NOMBRE_CORTO_ETIQUETA_SALUD = {
+  balanceada: 'Balanceada',
+  aceptable: 'Aceptable',
+  ocasional: 'De vez en cuando',
+} as const;
+
+export const NOMBRE_FILTRO_SALUD = {
+  balanceada: 'Balanceadas',
+  aceptable: 'Aceptables',
+  ocasional: 'De vez en cuando',
+} as const;
+
+// Orden de la más a la menos saludable
+export const RANGO_ETIQUETA_SALUD = { balanceada: 0, aceptable: 1, ocasional: 2 } as const;
+export const RANGO_SIN_DATO_SALUD = 3;
+
+// Los 3 grupos del Plato del Bien Comer (NOM-043-SSA2-2012)
+export const NOMBRE_GRUPO_PLATO = {
+  verduras_frutas: 'Verduras y frutas',
+  cereales: 'Cereales',
+  leguminosas_animal: 'Leguminosas y alimentos de origen animal',
+} as const;
+
+
+export interface OpcionSugerencia {
+  texto: string;
+  ingrediente: string | null;
+}
+
+export const OPCIONES_SUGERENCIA_GRUPO: Record<
+  'verduras_frutas' | 'cereales' | 'leguminosas_animal',
+  OpcionSugerencia[]
+> = {
+  verduras_frutas: [{ texto: 'verduras o fruta', ingrediente: null }],
+  cereales: [
+    { texto: 'tortillas de maíz', ingrediente: 'Tortilla de maíz' },
+    { texto: 'arroz', ingrediente: 'Arroz' },
+    { texto: 'avena', ingrediente: 'Avena' },
+  ],
+  leguminosas_animal: [
+    { texto: 'frijoles', ingrediente: 'Frijol' },
+    { texto: 'lentejas', ingrediente: 'Lenteja' },
+    { texto: 'huevo', ingrediente: 'Huevo' }, 
+  ],
+};

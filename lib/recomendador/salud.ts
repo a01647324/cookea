@@ -1,14 +1,18 @@
 import {
   NOM051,
   PESO_MODERAR,
+  RANGO_ETIQUETA_SALUD,
+  RANGO_SIN_DATO_SALUD,
   SALUD_BALANCE,
   SALUD_MODERACION,
   SALUD_UMBRAL_BALANCEADA,
+  OPCIONES_SUGERENCIA_GRUPO,
 } from '../../constants/recomendador';
 import { esBasico } from './cobertura';
-import { RecetaParaRecomendar, SaludResultado } from './tipos';
+import { IngredienteReceta, Recomendacion, RecetaParaRecomendar, SaludResultado } from './tipos';
 
-const GRUPOS_PRINCIPALES = ['verduras_frutas', 'cereales', 'leguminosas_animal'] as const;
+export const GRUPOS_PRINCIPALES = ['verduras_frutas', 'cereales', 'leguminosas_animal'] as const;
+export type GrupoPlato = (typeof GRUPOS_PRINCIPALES)[number];
 
 function etiquetaDe(score: number): SaludResultado['etiqueta'] {
   if (score >= SALUD_UMBRAL_BALANCEADA) return 'balanceada';
@@ -91,4 +95,64 @@ export function incluyeLosTresGrupos(receta: RecetaParaRecomendar): boolean {
     receta.ingredientes.filter((i) => !i.opcional && !esBasico(i.nombre)).map((i) => i.grupo)
   );
   return GRUPOS_PRINCIPALES.every((g) => presentes.has(g));
+}
+
+// ---------- Presentación: ¿qué aporta una receta al Plato del Bien Comer? ----------
+export interface AportePlato {
+  hayDatos: boolean; 
+  cubiertos: GrupoPlato[];
+  faltantes: GrupoPlato[];
+  ultraprocesados: string[];
+}
+
+type IngredienteMinimo = Pick<IngredienteReceta, 'nombre' | 'opcional' | 'grupo'>;
+
+// Mismo criterio que saludPlato
+export function aportePlato(ingredientes: IngredienteMinimo[]): AportePlato {
+  const considerados = ingredientes.filter(
+    (i) => !i.opcional && !esBasico(i.nombre) && i.grupo !== null && i.grupo !== 'neutro'
+  );
+  if (considerados.length === 0) return { hayDatos: false, cubiertos: [], faltantes: [], ultraprocesados: [] };
+
+  const presentes = new Set(considerados.map((i) => i.grupo));
+  return {
+    hayDatos: true,
+    cubiertos: GRUPOS_PRINCIPALES.filter((g) => presentes.has(g)),
+    faltantes: GRUPOS_PRINCIPALES.filter((g) => !presentes.has(g)),
+    ultraprocesados: considerados.filter((i) => i.grupo === 'ultraprocesado').map((i) => i.nombre),
+  };
+}
+
+function normalizarNombre(n: string): string {
+  return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function unir(partes: string[], conj: 'y' | 'o'): string {
+  if (partes.length <= 1) return partes[0] ?? '';
+  return `${partes.slice(0, -1).join(', ')} ${conj} ${partes[partes.length - 1]}`;
+}
+
+export function sugerenciaParaCompletar(
+  faltantes: GrupoPlato[],
+  excluir: ReadonlySet<string> = new Set()
+): string | null {
+  const excluidos = [...excluir].map(normalizarNombre);
+  const prohibido = (ingrediente: string | null) => {
+    if (!ingrediente) return false;
+    const n = normalizarNombre(ingrediente);
+    return excluidos.some((e) => e === n || e.startsWith(n) || n.startsWith(e));
+  };
+
+  const porGrupo = faltantes
+    .map((g) => OPCIONES_SUGERENCIA_GRUPO[g].filter((o) => !prohibido(o.ingrediente)).map((o) => o.texto))
+    .filter((textos) => textos.length > 0)
+    .map((textos) => unir(textos, 'o'));
+
+  if (porGrupo.length === 0) return null;
+  return `Para completar tu plato, acompáñala con ${unir(porGrupo, 'y')}.`;
+}
+
+// 0 = balanceada, 1 = aceptable, 2 = de vez en cuando, 3 = sin dato de salud
+export function rangoSalud(r: Pick<Recomendacion, 'salud'>): number {
+  return r.salud ? RANGO_ETIQUETA_SALUD[r.salud.etiqueta] : RANGO_SIN_DATO_SALUD;
 }

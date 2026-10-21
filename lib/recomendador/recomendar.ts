@@ -1,7 +1,7 @@
 import { NOVEDAD_YA_PREPARADA, PESOS } from '../../constants/recomendador';
 import { construirPerfil, calcularAfinidad } from './afinidad';
 import { calcularCobertura, stockPorIngrediente } from './cobertura';
-import { calcularSalud, incluyeLosTresGrupos } from './salud';
+import { calcularSalud, incluyeLosTresGrupos, rangoSalud } from './salud';
 import {
   Cobertura,
   Componentes,
@@ -153,7 +153,37 @@ export interface SeccionRecomendada {
   data: Recomendacion[];
 }
 
-export function agruparPorFaltantes(items: Recomendacion[]): SeccionRecomendada[] {
+ 
+export type FiltroSalud = 'todas' | 'balanceada' | 'aceptable' | 'ocasional';
+ 
+export interface OpcionesAgrupar {
+  ordenarPorSalud?: boolean;
+}
+ 
+// Orden ESTABLE por categoría de salud.
+export function ordenarPorCategoriaSalud(items: Recomendacion[]): Recomendacion[] {
+  return items
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => rangoSalud(a.r) - rangoSalud(b.r) || a.i - b.i)
+    .map((x) => x.r);
+}
+ 
+export function contarPorSalud(items: Recomendacion[]): Record<FiltroSalud, number> {
+  const conteo: Record<FiltroSalud, number> = { todas: items.length, balanceada: 0, aceptable: 0, ocasional: 0 };
+  for (const r of items) if (r.salud) conteo[r.salud.etiqueta] += 1;
+  return conteo;
+}
+ 
+export function filtrarPorSalud(items: Recomendacion[], filtro: FiltroSalud): Recomendacion[] {
+  if (filtro === 'todas') return items;
+  return items.filter((r) => r.salud?.etiqueta === filtro);
+}
+
+// Orden ESTABLE por categoría de salud. Dentro de una misma categoría se respeta el orden que ya traían
+// (el puntaje general: ingredientes que tienes, usar pronto, tus gustos). Así no se aparenta una precisión
+// que el cálculo no tiene: 0.74 y 0.78 son la misma categoría.
+
+export function agruparPorFaltantes(items: Recomendacion[], opciones: OpcionesAgrupar = {}): SeccionRecomendada[] {
   const ya: Recomendacion[] = [];
   const falta1: Recomendacion[] = [];
   const falta2o3: Recomendacion[] = [];
@@ -167,11 +197,13 @@ export function agruparPorFaltantes(items: Recomendacion[]): SeccionRecomendada[
     else mas.push(r);
   }
 
+  const ordenar = (lista: Recomendacion[]) => (opciones.ordenarPorSalud ? ordenarPorCategoriaSalud(lista) : lista);
+
   const secciones: SeccionRecomendada[] = [
-    { clave: 'ya', titulo: 'Puedes cocinarlas ya', data: ya },
-    { clave: 'falta1', titulo: 'Te falta 1 ingrediente', data: falta1 },
-    { clave: 'falta2o3', titulo: 'Te faltan 2 o 3 ingredientes', data: falta2o3 },
-    { clave: 'mas', titulo: 'Más ideas', data: mas },
+    { clave: 'ya', titulo: 'Puedes cocinarlas ya', data: ordenar(ya) },
+    { clave: 'falta1', titulo: 'Te falta 1 ingrediente', data: ordenar(falta1) },
+    { clave: 'falta2o3', titulo: 'Te faltan 2 o 3 ingredientes', data: ordenar(falta2o3) },
+    { clave: 'mas', titulo: 'Más ideas', data: ordenar(mas) },
   ];
   return secciones.filter((s) => s.data.length > 0);
 }

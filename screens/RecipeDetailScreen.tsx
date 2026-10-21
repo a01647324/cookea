@@ -15,6 +15,7 @@ import { formatearCantidad } from '../lib/unidades';
 import { normalizar } from '../constants/categorias';
 import { RecetaIngrediente } from '../types/database';
 import { colors, espaciado, fuentes, radios, sombra, tamanos } from '../theme/theme';
+import { PlatoBienComer } from '../components/receta/PlatoBienComer';
 
 type IngredienteConImagen = RecetaIngrediente & {
   ingredientes: RecetaIngrediente['ingredientes'] & { imagen_url?: string | null };
@@ -241,7 +242,10 @@ export function RecipeDetailScreen() {
               </View>
             );
           })}
-        </ScrollView>
+                </ScrollView>
+
+        {/* SALUD */}
+        <PlatoBienComer recetaId={recetaId} />
 
         {extras.utensilios.length > 0 && (
           <>

@@ -11,18 +11,19 @@ const FONDOS = [colors.resaltadoSuave, colors.acentoSuave, colors.calidoSuave, c
 interface Props {
   items: Recomendacion[];
   onAbrir: (recetaId: number) => void;
+  mostrarSalud?: boolean;
 }
 
-export function CarruselRecetas({ items, onAbrir }: Props) {
+export function CarruselRecetas({ items, onAbrir, mostrarSalud = false }: Props) {
   const { width } = useWindowDimensions();
   const ancho = Math.min(Math.round(width * 0.7), 300);
   const paso = ancho + SEPARACION;
   const lado = (width - ancho) / 2;
   const datos = items.slice(0, MAX_TARJETAS);
-
+ 
   const scrollX = useRef(new Animated.Value(0)).current;
   const [activo, setActivo] = useState(0);
-
+ 
   return (
     <View>
       <Animated.FlatList
@@ -53,13 +54,14 @@ export function CarruselRecetas({ items, onAbrir }: Props) {
                 ancho={ancho}
                 recomendacion={item}
                 colorFondo={FONDOS[index % FONDOS.length]}
+                mostrarSalud={mostrarSalud}
                 onPress={() => onAbrir(item.receta.id)}
               />
             </Animated.View>
           );
         }}
       />
-
+ 
       {datos.length > 1 && (
         <View style={estilos.puntos}>
           {datos.map((r, i) => (

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icono from '../Icono';
+import { ChipSalud } from './ChipSalud'; 
 import { useFavoriteToggle } from '../../hooks/useFavoriteToggle';
 import { Recomendacion } from '../../lib/recomendador/tipos';
 import { colors, espaciado, fuentes, radios, sombra, tamanos } from '../../theme/theme';
@@ -13,6 +14,7 @@ interface Props {
   onPress: () => void;
   variante?: 'lista' | 'carrusel' | 'destacada' | 'mini';
   ancho?: number;
+   mostrarSalud?: boolean;
 }
 
 type Insignia = { texto: string; punto: string; fondo: string; color: string };
@@ -32,13 +34,13 @@ function calcularInsignia(recomendacion: Recomendacion): Insignia | null {
   };
 }
 
-export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variante = 'lista', ancho }: Props) {
+export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variante = 'lista', ancho, mostrarSalud = false, }: Props) {
   const { receta, motivos } = recomendacion;
   const { esFavorita, alternar } = useFavoriteToggle(receta.id);
   const insignia = calcularInsignia(recomendacion);
   const motivo = motivos[0];
   const etiquetaAccesible = `${receta.nombre}. ${insignia?.texto ?? ''}. ${motivo ?? ''}`;
-
+  const etiquetaSalud = mostrarSalud && recomendacion.salud ? recomendacion.salud.etiqueta : null;
   const estrella = (
     <Pressable
       onPress={alternar}
@@ -100,18 +102,24 @@ export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variant
               <Icono nombre="users-group-rounded-linear" size={16} color={colors.calidoOscuro} />
               <Text style={estilos.textoDato}>{receta.porciones_base} porc.</Text>
             </View>
-          </View>
+            </View>
+          {etiquetaSalud && (
+            <View style={estilos.filaSalud}>
+              <ChipSalud etiqueta={etiquetaSalud} />
+            </View>
+          )}
           {extra ? (
             <Text style={estilos.motivoDestacada} numberOfLines={2}>
               {extra}
             </Text>
           ) : null}
+          
         </View>
       </Pressable>
     );
   }
 
-  if (variante === 'mini') {
+if (variante === 'mini') {
     return (
       <Pressable onPress={onPress} style={estilos.mini} accessibilityRole="button" accessibilityLabel={etiquetaAccesible}>
         <View style={estilos.fotoMini}>
@@ -127,11 +135,16 @@ export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variant
             <Icono nombre="clock-circle-linear" size={14} color={colors.textoSuave} />
             <Text style={estilos.textoMetaLista}>{receta.tiempo_min} min</Text>
           </View>
+          {etiquetaSalud && (
+            <View style={estilos.filaSalud}>
+              <ChipSalud etiqueta={etiquetaSalud} tamano="mini" />
+            </View>
+          )}
         </View>
       </Pressable>
     );
   }
-
+ 
   if (variante === 'carrusel') {
     return (
       <Pressable onPress={onPress} style={estilos.carrusel} accessibilityRole="button" accessibilityLabel={etiquetaAccesible}>
@@ -200,6 +213,11 @@ export function TarjetaRecomendada({ recomendacion, colorFondo, onPress, variant
             <Text style={[estilos.textoInsigniaClara, { color: insignia.color }]} numberOfLines={1}>
               {insignia.texto}
             </Text>
+          </View>
+        )}
+        {etiquetaSalud && (
+          <View style={estilos.filaSalud}>
+            <ChipSalud etiqueta={etiquetaSalud} tamano="mini" />
           </View>
         )}
         {motivo ? (
@@ -419,6 +437,9 @@ const estilos = StyleSheet.create({
   cuerpoMini: {
     padding: espaciado.sm,
     paddingBottom: 12,
+  },
+   filaSalud: {
+    marginTop: espaciado.sm,
   },
   nombreMini: {
     fontFamily: fuentes.negrita,

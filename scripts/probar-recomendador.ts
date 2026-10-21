@@ -8,9 +8,22 @@
  *
  * Si todo está bien termina con "✔ N pruebas pasaron". Si algo falla, dice cuál.
  */
-import { recomendar, agruparPorFaltantes } from '../lib/recomendador/recomendar';
+import {
+  recomendar,
+  agruparPorFaltantes,
+  contarPorSalud,
+  filtrarPorSalud,
+  ordenarPorCategoriaSalud,
+} from '../lib/recomendador/recomendar';
 import { calcularCobertura, stockPorIngrediente } from '../lib/recomendador/cobertura';
-import { saludPlato, saludNutricional, calcularSalud } from '../lib/recomendador/salud';
+import {
+  saludPlato,
+  saludNutricional,
+  calcularSalud,
+  aportePlato,
+  sugerenciaParaCompletar,
+  rangoSalud,
+} from '../lib/recomendador/salud';
 import { construirPerfil, calcularAfinidad } from '../lib/recomendador/afinidad';
 import {
   Contexto,
@@ -23,6 +36,10 @@ import {
   UnidadBase,
 } from '../lib/recomendador/tipos';
 import { log } from '../lib/log';
+
+// Fuera de la app (en Node) no existe __DEV__; lib/log.ts solo imprime cuando es true.
+// Sin esta línea el script truena o no muestra nada.
+(globalThis as { __DEV__?: boolean }).__DEV__ = true;
 
 // ---------- Mini herramientas de prueba ----------
 let pasaron = 0;
@@ -333,6 +350,109 @@ prueba('agruparPorFaltantes separa ya / falta 1 / falta 2-3 / más', () => {
   const mas = secc.find((s) => s.clave === 'falta2o3')!; // hotdogs: faltan 3
   igual(mas.data[0].receta.id, 3);
   cierto(secc.every((s) => s.data.length > 0), 'secciones vacías');
+});
+
+
+log('\nSALUD EN LA PANTALLA (categorías, orden y Plato del Bien Comer)');
+const arrozFrijolMayo = receta(5, 'Arroz con frijoles y mayonesa', [ing('arroz', 200), ing('frijol', 150), ing('mayonesa', 40)]);
+const soloAgua = receta(6, 'Agua con sal', [ing('agua', 500), ing('sal', 2)]);
+
+prueba('las categorías salen como se espera: balanceada, aceptable y ocasional', () => {
+  igual(calcularSalud(arrozFrijol)!.etiqueta, 'balanceada');
+  igual(calcularSalud(arrozFrijolMayo)!.etiqueta, 'aceptable');
+  igual(calcularSalud(hotdogs)!.etiqueta, 'ocasional');
+  igual(calcularSalud(soloAgua), null);
+});
+prueba('aportePlato: arroz con frijoles cubre los 3 grupos', () => {
+  const a = aportePlato(arrozFrijol.ingredientes);
+  cierto(a.hayDatos, 'debería haber datos');
+  igual(a.cubiertos.length, 3);
+  igual(a.faltantes.length, 0);
+  igual(sugerenciaParaCompletar(a.faltantes), null);
+});
+prueba('aportePlato: huevos a la mexicana no tiene cereal y se sugiere completar', () => {
+  const a = aportePlato(huevoRanchero.ingredientes);
+  igual(a.faltantes.join(','), 'cereales');
+  cierto(a.cubiertos.includes('verduras_frutas') && a.cubiertos.includes('leguminosas_animal'), 'cubiertos');
+  cierto((sugerenciaParaCompletar(a.faltantes) ?? '').includes('tortillas'), 'sugerencia de cereal');
+});
+prueba('aportePlato: un ingrediente opcional no cuenta como grupo cubierto', () => {
+  const r = receta(7, 'Prueba', [ing('arroz', 100), ing('zanahoria', 1, { opcional: true })]);
+  const a = aportePlato(r.ingredientes);
+  igual(a.cubiertos.join(','), 'cereales');
+  igual(a.faltantes.length, 2);
+});
+prueba('aportePlato: lista los ultraprocesados y mayonesa no cuenta como tal', () => {
+  const a = aportePlato(hotdogs.ingredientes);
+  igual(a.ultraprocesados.join(','), 'Salchicha,Galletas saladas');
+});
+prueba('aportePlato: receta sin grupos asignados => hayDatos false, no truena', () => {
+  const a = aportePlato(soloAgua.ingredientes);
+  igual(a.hayDatos, false);
+  const sinGrupo = receta(8, 'X', [{ ...ing('arroz', 100), grupo: null }]);
+  igual(aportePlato(sinGrupo.ingredientes).hayDatos, false);
+});
+prueba('sugerenciaParaCompletar con 2 grupos los une con "y"', () => {
+  const t = sugerenciaParaCompletar(['verduras_frutas', 'cereales'])!;
+  cierto(t.includes('verduras o fruta y tortillas'), t);
+});
+prueba('sugerencia con alergia al huevo: ya no sugiere huevo, sí frijoles y lentejas', () => {
+  const t = sugerenciaParaCompletar(['leguminosas_animal'], new Set(['Huevo']))!;
+  cierto(!t.toLowerCase().includes('huevo'), t);
+  cierto(t.includes('frijoles o lentejas'), t);
+});
+prueba('sugerencia con alergia al gluten: se quita la avena pero quedan tortillas y arroz', () => {
+  const t = sugerenciaParaCompletar(['cereales'], new Set(['Avena']))!;
+  cierto(!t.includes('avena'), t);
+  cierto(t.includes('tortillas de maíz o arroz'), t);
+});
+prueba('sugerencia: la comparación ignora acentos, mayúsculas y plurales', () => {
+  const t = sugerenciaParaCompletar(['cereales', 'leguminosas_animal'], new Set(['TORTILLA DE MAIZ', 'huevos']))!;
+  cierto(!t.includes('tortillas') && !t.includes('huevo'), t);
+});
+prueba('sugerencia: si a un grupo no le queda ninguna opción se omite; si no queda nada, null', () => {
+  const todoLeg = new Set(['Frijol', 'Lenteja', 'Huevo']);
+  const t = sugerenciaParaCompletar(['verduras_frutas', 'leguminosas_animal'], todoLeg)!;
+  cierto(t.includes('verduras o fruta') && !t.includes('frijol'), t);
+  igual(sugerenciaParaCompletar(['leguminosas_animal'], todoLeg), null);
+});
+prueba('sugerencia: sin alergias (set vacío) queda igual que antes', () => {
+  igual(
+    sugerenciaParaCompletar(['leguminosas_animal'], new Set()),
+    'Para completar tu plato, acompáñala con frijoles, lentejas o huevo.'
+  );
+});
+prueba('ordenarPorCategoriaSalud: balanceada, aceptable, ocasional y sin dato al final', () => {
+  const al = stock(['arroz', 999]);
+  const r = recomendar([hotdogs, soloAgua, arrozFrijolMayo, arrozFrijol], ctx(al)).items;
+  const orden = ordenarPorCategoriaSalud(r).map((x) => rangoSalud(x));
+  for (let i = 1; i < orden.length; i++) cierto(orden[i - 1] <= orden[i], `orden roto: ${orden.join(',')}`);
+  igual(orden[orden.length - 1], 3, 'sin dato debe ir al final');
+});
+prueba('ordenarPorCategoriaSalud respeta el orden previo dentro de la misma categoría', () => {
+  const r = recomendar([arrozFrijol, sopaLentejas], ctx(stock(['lenteja', 300], ['zanahoria', 3], ['cebolla', 2]))).items;
+  const antes = r.map((x) => x.receta.id).join(',');
+  const despues = ordenarPorCategoriaSalud(r).map((x) => x.receta.id).join(',');
+  igual(despues, antes, 'ambas son balanceadas: no deben cambiar de lugar');
+});
+prueba('agruparPorFaltantes con ordenarPorSalud ordena dentro de cada sección; sin la opción no cambia nada', () => {
+  const al = stock(['arroz', 999], ['frijol', 999], ['mayonesa', 999], ['salchicha', 99], ['galletas', 999]);
+  const r = recomendar([hotdogs, arrozFrijolMayo], ctx(al)).items;
+  const sinOrden = agruparPorFaltantes(r).find((s) => s.clave === 'ya')!.data.map((x) => x.receta.id);
+  const conOrden = agruparPorFaltantes(r, { ordenarPorSalud: true }).find((s) => s.clave === 'ya')!.data.map((x) => x.receta.id);
+  igual(conOrden.join(','), '5,3', 'aceptable (5) antes que ocasional (3)');
+  igual(sinOrden.length, 2);
+});
+prueba('contarPorSalud y filtrarPorSalud', () => {
+  const r = recomendar([arrozFrijol, arrozFrijolMayo, hotdogs, soloAgua], ctx([])).items;
+  const c = contarPorSalud(r);
+  igual(c.todas, 4);
+  igual(c.balanceada, 1);
+  igual(c.aceptable, 1);
+  igual(c.ocasional, 1);
+  igual(filtrarPorSalud(r, 'todas').length, 4);
+  igual(filtrarPorSalud(r, 'ocasional')[0].receta.id, 3);
+  igual(filtrarPorSalud(r, 'balanceada').length, 1);
 });
 
 log(`\n${fallos.length === 0 ? '✔' : '✘'} ${pasaron} pruebas pasaron${fallos.length ? `, ${fallos.length} fallaron` : ''}`);

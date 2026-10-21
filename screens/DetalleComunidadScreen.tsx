@@ -29,6 +29,7 @@ import { RecetaIngrediente } from '../types/database';
 import { ModalYaLoPrepare } from '../components/receta/modalYaLoPrepare';
 import { HojaAgregarSemana } from '../components/receta/HojaAgregarSemana';
 import { esEnlaceVideoSeguro } from '../lib/entradas';
+import { PlatoBienComer } from '../components/receta/PlatoBienComer'; // SALUD
 
 interface Props {
   recetaId: number;
@@ -431,6 +432,10 @@ export default function DetalleComunidadScreen({
                   {opcionales.map(filaIngrediente)}
                 </>
               )}
+                {/* SALUD */}
+            <View style={{ marginHorizontal: -espaciado.md }}>
+              <PlatoBienComer recetaId={recetaId} />
+            </View>
             </View>
           ) : (
             <View style={estilos.lista}>
